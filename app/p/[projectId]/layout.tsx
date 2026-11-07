@@ -22,6 +22,12 @@ export default async function ProjectLayout({ children, params }: { children: Re
         <h2 style={{ marginTop: 16 }}>{p.name}</h2>
         <nav style={{ display: "grid", gap: 6, marginTop: 12 }}>
           <Link href={`/p/${projectId}/dash`}>داشبورد</Link>
+          <Link href={`/p/${projectId}/issues`}>مشکلات</Link>
+          <Link href={`/p/${projectId}/pages`}>صفحات</Link>
+          <Link href={`/p/${projectId}/uptime`}>آپتایم</Link>
+          <Link href={`/p/${projectId}/gsc`}>سرچ کنسول</Link>
+          <Link href={`/p/${projectId}/catalog`}>محصولات</Link>
+          <Link href={`/p/${projectId}/tasks`}>کارها</Link>
         </nav>
       </aside>
       <main style={{ flex: 1, padding: 24, fontFamily: "Vazirmatn, sans-serif" }}>{children}</main>

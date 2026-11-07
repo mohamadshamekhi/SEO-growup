@@ -57,6 +57,17 @@ export function requireUser(req: NextRequest): { user: User } | { response: Next
   return { user };
 }
 
+// Convenience for the common case: every project-scoped route needs both checks in order
+// (session, then role-for-this-project), and most of them don't need the intermediate user
+// object for anything else.
+export function requireProjectAccess(req: NextRequest, pid: string, level: "view" | "edit" | "admin"): { user: User; role: Role } | { response: NextResponse } {
+  const u = requireUser(req);
+  if ("response" in u) return u;
+  const p = requireProject(u.user, pid, level);
+  if ("response" in p) return p;
+  return { user: u.user, role: p.role };
+}
+
 export function requireProject(user: User, pid: string, level: "view" | "edit" | "admin"): { role: Role } | { response: NextResponse } {
   const r = role(user, pid);
   if (!r) return { response: NextResponse.json({ error: "پیدا نشد" }, { status: 404 }) };
