@@ -1,69 +1,23 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+// Phase 0 placeholder — proves the stack end-to-end (server.ts -> Next -> DB) without any
+// real feature yet. Phase 1 replaces this with the login/projects-picker page per the plan.
+import { one } from "@/lib/db";
+import { formatJalali, icuSmokeTest } from "@/lib/intl/jalali";
+import { faNum } from "@/lib/intl/fa";
+
+// Every real page in this app is session/DB-driven, so force dynamic rendering rather than
+// letting Next statically prerender a snapshot at build time — set this per-page from here on.
+export const dynamic = "force-dynamic";
 
 export default function Home() {
+  const row = one<{ n: number }>("SELECT COUNT(*) as n FROM projects");
+  const icu = icuSmokeTest();
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>
-            To get started, edit the{" "}
-            <code className={styles.code}>page.tsx</code> file.
-          </h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main style={{ padding: 32, fontFamily: "Vazirmatn, sans-serif" }}>
+      <h1>Growth Hub — فاز ۰</h1>
+      <p>پروژه‌های موجود در دیتابیس: {faNum(row?.n ?? 0)}</p>
+      <p>
+        تاریخ جلالی امروز: {formatJalali(Date.now())} ({icu.ok ? "تقویم جلالی فعال است" : `⚠️ تقویم جلالی غیرفعال، calendar=${icu.calendar}`})
+      </p>
+    </main>
   );
 }

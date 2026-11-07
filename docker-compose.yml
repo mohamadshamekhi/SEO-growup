@@ -1,0 +1,16 @@
+# Phase 0: a standalone stack on its own port/volume (hub-next-data), deliberately NOT the
+# live `hub-data` volume growth-hub/docker-compose.yml uses — real cutover (plan section 7)
+# reuses that same volume and flips Caddy's reverse_proxy target; it does not happen by
+# editing this file today. Run this alongside the Python stack for development/demo only.
+services:
+  hub-next:
+    build: .
+    restart: unless-stopped
+    environment:
+      HUB_HOSTS: ${HUB_DOMAIN:-localhost}
+    volumes:
+      - hub-next-data:/data
+    ports: ["4501:4500"]
+    mem_limit: 1g
+volumes:
+  hub-next-data:
