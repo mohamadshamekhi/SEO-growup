@@ -38,6 +38,11 @@ async function main() {
   }
 
   createServer((req, res) => {
+    // Next's Route Handlers (Fetch API Request) have no direct access to the raw TCP
+    // socket, unlike Python's self.client_address — inject the real peer address as a
+    // header here, the one place we can trust it, so lib/access.ts's clientIp()/isLocal()
+    // can rely on it instead of a spoofable client-supplied header.
+    req.headers["x-growth-hub-remote-addr"] = req.socket.remoteAddress || "";
     const parsedUrl = parse(req.url || "/", true);
     handle(req, res, parsedUrl);
   }).listen(port, hostname, () => {
