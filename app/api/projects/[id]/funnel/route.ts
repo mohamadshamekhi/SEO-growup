@@ -1,6 +1,6 @@
-// Ported from server.py's combined GET .../funnel. prices.rows() (hub/prices.py) and
-// growth.impact_summary() (hub/growth.py, not fully ported) are not built yet — returned
-// as empty/null so the frontend can tell "not built yet" from "really empty".
+// Ported from server.py's combined GET .../funnel. growth.impact_summary() (hub/growth.py,
+// not fully ported) is not built yet — returned as empty so the frontend can tell "not built
+// yet" from "really empty".
 import { NextRequest, NextResponse } from "next/server";
 import { requireProjectAccess } from "@/lib/access";
 import { config } from "@/lib/adapters";
@@ -8,6 +8,7 @@ import { rows, croList, tests, feedState, oosList, paidOos, restock, setMargin }
 import { rollbacks, batches } from "@/lib/policy";
 import { funnel as gaFunnel, getProperty, hasCartEvents, channels, tracking } from "@/lib/ga";
 import { sales } from "@/lib/growth";
+import { rows as priceRows } from "@/lib/prices";
 import { logActivity } from "@/lib/activity";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     impact: [], // Phase 5e (hub/growth.py's impact_summary)
     channels: channels(pid), tracking: tracking(pid),
     alternatives: oosList(pid), paid_oos: paidOos(pid), restock: restock(pid),
-    prices: [], // hub/prices.py not ported yet
+    prices: priceRows(pid),
     batches: batches(pid),
   });
 }

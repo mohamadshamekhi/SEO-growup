@@ -11,6 +11,7 @@ import { projects } from "../projects";
 import { get, isDue, lastTimes, type JobKey } from "../schedule";
 import { enqueue } from "./queues";
 import { tick as policyTick, AUTO_USER } from "../policy";
+import { hasLinks as pricesHaveLinks } from "../prices";
 
 const POLL_MS = 60_000;
 
@@ -21,6 +22,7 @@ function tick() {
       const jobs = get(p);
       const last = lastTimes(p.id);
       for (const key of Object.keys(jobs) as JobKey[]) {
+        if (key === "prices" && !pricesHaveLinks(p.id)) continue; // no Torob links set up yet
         if (isDue(jobs[key], last[key], now)) enqueue({ project: p.id, kind: key, auto: true });
       }
       const ready = policyTick(p.id, now);
