@@ -74,7 +74,7 @@ export async function fetchUrl(url: string, method: "GET" | "HEAD" = "GET", foll
 // ---------- HTML parsing (mirrors hub/crawl.py's Page(HTMLParser)) ----------
 export type ParsedPage = {
   title: string; meta: Record<string, string>; links: Record<string, string[]>; h1: number;
-  imgs: { alt?: string; role?: string }[]; ld: string[]; a: string[]; text: string[]; mainText: string[];
+  imgs: { alt?: string; role?: string; src?: string }[]; ld: string[]; a: string[]; text: string[]; mainText: string[];
 };
 
 export function parsePage(html: string): ParsedPage {
@@ -97,7 +97,7 @@ export function parsePage(html: string): ParsedPage {
       } else if (tag === "link" && attrs.rel) {
         const rel = attrs.rel.toLowerCase();
         (p.links[rel] ??= []).push(attrs.href || "");
-      } else if (tag === "img") p.imgs.push({ alt: attrs.alt, role: attrs.role });
+      } else if (tag === "img") p.imgs.push({ alt: attrs.alt, role: attrs.role, src: attrs.src });
       else if (tag === "a" && attrs.href) p.a.push(attrs.href);
     },
     onclosetag(tag) {
@@ -156,7 +156,7 @@ export function pageKind(url: string, _base: string): "home" | "product" | "list
   return "static";
 }
 
-async function sitemapUrls(smUrl: string, log: (m: string) => void, depth = 0): Promise<string[] | null> {
+export async function sitemapUrls(smUrl: string, log: (m: string) => void, depth = 0): Promise<string[] | null> {
   const r = await fetchUrl(smUrl);
   await sleep(DELAY_MS);
   if (r.status !== 200) return null;
