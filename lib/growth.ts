@@ -2,13 +2,14 @@
 // pages sell, whether each change helped, which old articles deserve rewriting, and a short
 // weekly message. Anything that changes the site still waits for approval.
 //
-// refresh_candidates()/next_refresh()/refresh_set() depend on hub/autofix.py's live_article()
-// (not ported — reads the live article body through the site adapter) and
-// cluster_context()/set_clusters() depend on hub/planner.py's add_idea() (not ported). Both
-// are called through small stubs below that throw a clear "not built yet" error rather than
-// faking success, same pattern as lib/jobs/queues.ts's NOT_IMPLEMENTED set. digest() itself
-// (the text) is fully ported; send_digest()'s actual Telegram send (hub/publisher.py) isn't.
+// cluster_context()/set_clusters() depend on hub/planner.py's add_idea() (not ported) —
+// called through a small stub below that returns false rather than faking success, same
+// pattern as lib/jobs/queues.ts's NOT_IMPLEMENTED set. digest() itself (the text) is fully
+// ported; send_digest()'s actual Telegram send (lib/publisher.ts's notify()) isn't wired in
+// (hub/growth.py's send_digest() takes no project-kind argument that lib/publisher.ts's
+// notify() needs disambiguated — left for the caller to wire explicitly).
 import * as adapters from "./adapters";
+import { liveArticle } from "./autofix";
 import { catalogRows, type CatalogItem } from "./catalog";
 import { U } from "./crawl";
 import { getSetting, localDateStr, now as dbNow, one, q, run, setSetting } from "./db";
@@ -188,12 +189,6 @@ export function refreshCandidates(project: ProjectRow) {
   );
   const tasks = new Set(q<{ target_url: string }>("SELECT target_url FROM keywords k JOIN tasks t ON t.id=k.task_id WHERE k.project_id=? AND t.status!='done'", pid).map((r) => r.target_url));
   return rows.filter((r) => !done.has(r.url)).sort((a, b) => Number(!tasks.has(a.url)) - Number(!tasks.has(b.url)));
-}
-
-/** hub/autofix.py's live_article() isn't ported — reads the live article body through the
- * site adapter. Throws honestly rather than faking a body. */
-async function liveArticle(_projectId: string, _url: string): Promise<{ title?: string; body?: string }> {
-  throw new Error("خواندن مقاله زنده هنوز در نسخه Next.js پیاده نشده (hub/autofix.py ported نشده)");
 }
 
 export async function nextRefresh(project: ProjectRow) {
