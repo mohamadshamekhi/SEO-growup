@@ -23,6 +23,9 @@ COPY --from=build /app/next.config.ts ./next.config.ts
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/tsconfig.json ./tsconfig.json
 RUN mkdir /data && chown node /data
+# renderImage()/analyze() (lib/tools.ts) need a real Chromium — the server has no system
+# Chrome like the dev Mac does, so install Playwright's own + its OS deps as root.
+RUN npx playwright install --with-deps chromium
 USER node
 ENV HUB_DATA=/data HUB_BIND=0.0.0.0 HUB_PORT=4500 NODE_ENV=production
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD node -e "fetch('http://localhost:4500/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
