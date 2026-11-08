@@ -20,6 +20,9 @@
 import { run, one } from "../db";
 import { project } from "../projects";
 import { ping } from "../tools";
+import { pull as gscPull } from "../gsc";
+import { pull as gaPull } from "../ga";
+import { runSpeed } from "../pagespeed";
 
 export type Job = { project: string; kind: string; auto?: boolean; ids?: number[]; user?: string; [k: string]: unknown };
 
@@ -50,7 +53,7 @@ const lanes = shared.lanes;
 const HISTORY_MAX = 30;
 
 // Not yet ported from Python; each is added as its owning module lands.
-const NOT_IMPLEMENTED = new Set(["audit", "catalog", "gsc", "speed", "watch", "kwgap", "prices", "report", "apply", "undo", "index", "articles", "recheck"]);
+const NOT_IMPLEMENTED = new Set(["audit", "catalog", "watch", "kwgap", "prices", "report", "apply", "undo", "index", "articles", "recheck"]);
 
 function laneFor(kind: string): Lane {
   if (kind === "apply" || kind === "undo") return "writeJobs";
@@ -77,6 +80,29 @@ async function runJob(job: Job, progress: (done: number, total: number, message:
     if (!p) return { status: "error", error: "پروژه پیدا نشد" };
     const r = await ping(p);
     return { status: "ok", summary: r };
+  }
+  if (job.kind === "gsc") {
+    const p = project(job.project);
+    if (!p) return { status: "error", error: "پروژه پیدا نشد" };
+    try {
+      const r = await gscPull(p);
+      // keywords.track()/growth.measure()/funnel.measure_tests()/oos_propose() that the
+      // Python scheduler also runs after a GSC pull are Phase 5b/5e — not run here yet.
+      try { await gaPull(p); } catch { /* GA is optional; a GSC-only pull still counts as ok */ }
+      return { status: "ok", summary: r };
+    } catch (e) {
+      return { status: "error", error: String((e as Error).message || e).slice(0, 500) };
+    }
+  }
+  if (job.kind === "speed") {
+    const p = project(job.project);
+    if (!p) return { status: "error", error: "پروژه پیدا نشد" };
+    try {
+      const r = await runSpeed(p, progress);
+      return { status: "ok", summary: r };
+    } catch (e) {
+      return { status: "error", error: String((e as Error).message || e).slice(0, 500) };
+    }
   }
   if (NOT_IMPLEMENTED.has(job.kind)) {
     return { status: "error", error: `این نوع کار («${job.kind}») هنوز در نسخه Next.js پیاده نشده؛ منتظر فاز مربوطه بمانید.` };

@@ -1,8 +1,8 @@
-// Ported from server.py's /api/settings. gsc.key_info()/pagespeed are Phase 5a stubs; the
-// agent-tokens list is real (it only needs the DB).
+// Ported from server.py's /api/settings.
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/access";
 import { getSetting, q, setSetting } from "@/lib/db";
+import { keyInfo } from "@/lib/gsc";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   const gate = adminOnly(req);
   if ("response" in gate) return gate.response;
   return NextResponse.json({
-    gsc_key: null, // Phase 5a
+    gsc_key: keyInfo(),
     has_pagespeed: !!getSetting("pagespeed_key", ""),
     agents: q("SELECT id, name, last_seen FROM agent_tokens ORDER BY id"),
   });

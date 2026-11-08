@@ -9,7 +9,7 @@ async function fetchWithTimeout(url: string, timeoutMs: number): Promise<{ statu
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { signal: controller.signal, redirect: "follow", headers: { "User-Agent": "GrowthHub-Uptime/1.0" } });
+    const res = await fetch(url, { signal: controller.signal, redirect: "follow", headers: { "User-Agent": "GrowthHub-Uptime/1.0" }, cache: "no-store" });
     // Draining the body isn't needed for a status check, but undici can otherwise hold the
     // connection open; closing it keeps consecutive pings fast.
     await res.body?.cancel().catch(() => {});

@@ -1,11 +1,13 @@
-// Ported from server.py's GET /api/overview. gsc_key/priorities/my_tasks fields are stubbed
-// until the phases that port GSC and crawl.CHECKS-based priorities land — the frontend
-// should treat them as "not yet available", not "confirmed empty". jobs/writer are real.
+// Ported from server.py's GET /api/overview. priorities/my_tasks fields are stubbed until
+// crawl.CHECKS-based priorities (Phase 5) and Phase 3's task-digest query are wired here —
+// the frontend should treat them as "not yet available", not "confirmed empty".
+// jobs/writer/gsc_key are real.
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/access";
 import { role, visibleProjects } from "@/lib/auth";
 import { projectSummary, jobsState } from "@/lib/overview";
 import { writerState } from "@/lib/jobs/writer";
+import { keyInfo } from "@/lib/gsc";
 
 export const dynamic = "force-dynamic";
 
@@ -16,10 +18,11 @@ export async function GET(req: NextRequest) {
   const visible = visibleProjects(user);
   const projects = visible.map((p) => ({ ...projectSummary(p), my_role: role(user, p.id) }));
   const w = writerState();
+  const gk = keyInfo();
   return NextResponse.json({
     projects,
     jobs: jobsState(new Set(visible.map((p) => p.id))),
-    gsc_key: null,
+    gsc_key: user.is_admin ? gk : !!gk,
     priorities: [],
     my_tasks: [],
     writer_available: w.running,
