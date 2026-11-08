@@ -17,8 +17,10 @@ export default async function SettingsTab({ params }: { params: Promise<{ projec
 
   return (
     <div>
-      <h1>تنظیمات {p.name}</h1>
-      <AdapterClient projectId={projectId} initialAdapter={publicConfig(projectId)} />
+      <div className="page-head"><div className="head-title"><h1>تنظیمات {p.name}</h1></div></div>
+      <section className="panel narrow">
+        <AdapterClient projectId={projectId} initialAdapter={publicConfig(projectId)} />
+      </section>
     </div>
   );
 }

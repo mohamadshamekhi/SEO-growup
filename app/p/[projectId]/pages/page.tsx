@@ -20,26 +20,28 @@ export default async function PagesTab({ params }: { params: Promise<{ projectId
 
   return (
     <div>
-      <h1>صفحات</h1>
-      {!run && <p>هنوز ممیزی موفقی ثبت نشده.</p>}
+      <div className="page-head"><div className="head-title"><h1>صفحات</h1></div></div>
+      {!run && <div className="empty-inline"><p>هنوز ممیزی موفقی ثبت نشده.</p></div>}
       {run && (
         <>
-          <p className="muted small">{faNum(rows.length)} صفحه از آخرین ممیزی</p>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><th>آدرس</th><th>نوع</th><th>کد</th><th>عنوان</th><th>کلمات</th><th>مشکلات</th></tr></thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={i} style={{ borderTop: "1px solid #333" }}>
-                  <td className="ltr mono" style={{ fontSize: 12 }}>{r.url}</td>
-                  <td>{r.kind}</td>
-                  <td>{r.status}</td>
-                  <td style={{ fontSize: 12 }}>{r.title}</td>
-                  <td>{faNum(r.words)}</td>
-                  <td>{faNum(r.issues)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <p className="page-note">{faNum(rows.length)} صفحه از آخرین ممیزی</p>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>آدرس</th><th>نوع</th><th>کد</th><th>عنوان</th><th className="num">کلمات</th><th className="num">مشکلات</th></tr></thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i}>
+                    <td className="url">{r.url}</td>
+                    <td>{r.kind}</td>
+                    <td className={r.status >= 400 ? "bad-txt" : ""}>{r.status}</td>
+                    <td style={{ fontSize: 12 }}>{r.title}</td>
+                    <td className="num">{faNum(r.words)}</td>
+                    <td className="num">{r.issues ? <span className="sev warning">{faNum(r.issues)}</span> : faNum(0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </div>

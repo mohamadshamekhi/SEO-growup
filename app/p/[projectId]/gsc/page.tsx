@@ -15,46 +15,50 @@ export default async function GscTab({ params }: { params: Promise<{ projectId: 
   if (!d.snap) {
     return (
       <div>
-        <h1>سرچ کنسول</h1>
-        <p>هنوز داده‌ای از Search Console خوانده نشده (یا هنوز متصل نیست).</p>
+        <div className="page-head"><div className="head-title"><h1>سرچ کنسول</h1></div></div>
+        <div className="empty-inline"><p>هنوز داده‌ای از Search Console خوانده نشده (یا هنوز متصل نیست).</p></div>
       </div>
     );
   }
 
   return (
     <div>
-      <h1>سرچ کنسول</h1>
+      <div className="page-head"><div className="head-title"><h1>سرچ کنسول</h1></div></div>
       {d.opportunities.length > 0 && (
-        <section style={{ margin: "16px 0" }}>
-          <h3>فرصت‌ها ({faNum(d.opportunities.length)})</h3>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><th>کلمه</th><th>نوع</th><th>جایگاه</th><th>نمایش</th><th>چرا</th></tr></thead>
+        <section className="panel" style={{ marginBottom: 14 }}>
+          <h3>فرصت‌ها <span className="count">{faNum(d.opportunities.length)}</span></h3>
+          <div className="table-wrap plain">
+            <table>
+              <thead><tr><th>کلمه</th><th>نوع</th><th className="num">جایگاه</th><th className="num">نمایش</th><th>چرا</th></tr></thead>
+              <tbody>
+                {d.opportunities.slice(0, 30).map((o, i) => (
+                  <tr key={i}>
+                    <td>{o.key}</td>
+                    <td><span className="chip info">{OPP_FA[o.type] || o.type}</span></td>
+                    <td className="num">{faNum(o.position, 1)}</td>
+                    <td className="num">{faNum(o.impressions)}</td>
+                    <td className="muted" style={{ fontSize: 12 }}>{o.why}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+      <section className="panel">
+        <h3>پرکلیک‌ترین کلمات</h3>
+        <div className="table-wrap plain">
+          <table>
+            <thead><tr><th>کلمه</th><th className="num">کلیک</th><th className="num">نمایش</th><th className="num">جایگاه</th></tr></thead>
             <tbody>
-              {d.opportunities.slice(0, 30).map((o, i) => (
-                <tr key={i} style={{ borderTop: "1px solid #333" }}>
-                  <td>{o.key}</td>
-                  <td>{OPP_FA[o.type] || o.type}</td>
-                  <td>{faNum(o.position, 1)}</td>
-                  <td>{faNum(o.impressions)}</td>
-                  <td style={{ fontSize: 12, opacity: 0.8 }}>{o.why}</td>
+              {d.queries.slice(0, 30).map((q, i) => (
+                <tr key={i}>
+                  <td>{q.key}</td><td className="num">{faNum(q.clicks)}</td><td className="num">{faNum(q.impressions)}</td><td className="num">{faNum(q.position, 1)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </section>
-      )}
-      <section style={{ margin: "16px 0" }}>
-        <h3>پرکلیک‌ترین کلمات</h3>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr><th>کلمه</th><th>کلیک</th><th>نمایش</th><th>جایگاه</th></tr></thead>
-          <tbody>
-            {d.queries.slice(0, 30).map((q, i) => (
-              <tr key={i} style={{ borderTop: "1px solid #333" }}>
-                <td>{q.key}</td><td>{faNum(q.clicks)}</td><td>{faNum(q.impressions)}</td><td>{faNum(q.position, 1)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        </div>
       </section>
     </div>
   );

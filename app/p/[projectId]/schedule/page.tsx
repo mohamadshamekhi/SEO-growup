@@ -14,7 +14,7 @@ export default async function ScheduleTab({ params }: { params: Promise<{ projec
 
   return (
     <div>
-      <h1>زمان‌بندی</h1>
+      <div className="page-head"><div className="head-title"><h1>زمان‌بندی</h1></div></div>
       <ScheduleClient projectId={projectId} initialJobs={describe(p)} isAdmin={!!user?.is_admin} />
     </div>
   );

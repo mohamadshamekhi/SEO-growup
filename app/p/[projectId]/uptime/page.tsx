@@ -19,34 +19,38 @@ export default async function UptimeTab({ params }: { params: Promise<{ projectI
   );
 
   const Stat = ({ label, s }: { label: string; s: ReturnType<typeof uptimeStats> }) => (
-    <div style={{ border: "1px solid #333", borderRadius: 10, padding: 12 }}>
-      <div style={{ fontSize: 13, opacity: 0.7 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700 }}>{s.pct == null ? "—" : `${faNum(s.pct, 1)}٪`}</div>
-      <div style={{ fontSize: 12, opacity: 0.7 }}>{s.avg_ms != null ? `میانگین ${faNum(s.avg_ms)} میلی‌ثانیه` : "—"} · {faNum(s.checks)} بررسی</div>
+    <div className={`kpi${s.pct != null && s.pct < 99 ? " bad" : s.pct != null ? " good" : ""}`}>
+      <span className="kpi-l">{label}</span>
+      <b>{s.pct == null ? "—" : `${faNum(s.pct, 1)}٪`}</b>
+      <span className="kpi-x">{s.avg_ms != null ? `میانگین ${faNum(s.avg_ms)} میلی‌ثانیه` : "—"} · {faNum(s.checks)} بررسی</span>
     </div>
   );
 
   return (
     <div>
-      <h1>آپتایم</h1>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, margin: "16px 0" }}>
+      <div className="page-head"><div className="head-title"><h1>آپتایم</h1></div></div>
+      <div className="kpis">
         <Stat label="۲۴ ساعت" s={day} />
         <Stat label="۷ روز" s={week} />
         <Stat label="۳۰ روز" s={month} />
       </div>
-      <h3>آخرین بررسی‌ها (۷ روز)</h3>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead><tr><th>زمان</th><th>کد</th><th>میلی‌ثانیه</th></tr></thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={i} style={{ borderTop: "1px solid #333", color: r.status >= 200 && r.status < 400 ? undefined : "#e66" }}>
-              <td>{formatJalaliDateTime(r.ts * 1000)}</td>
-              <td>{r.status || "بدون پاسخ"}</td>
-              <td>{faNum(r.ms)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <section className="panel">
+        <h3>آخرین بررسی‌ها (۷ روز)</h3>
+        <div className="table-wrap plain">
+          <table>
+            <thead><tr><th>زمان</th><th>کد</th><th className="num">میلی‌ثانیه</th></tr></thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i}>
+                  <td>{formatJalaliDateTime(r.ts * 1000)}</td>
+                  <td className={r.status >= 200 && r.status < 400 ? "ok-txt" : "bad-txt"}>{r.status || "بدون پاسخ"}</td>
+                  <td className="num">{faNum(r.ms)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

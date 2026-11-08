@@ -14,21 +14,23 @@ export default async function CatalogTab({ params }: { params: Promise<{ project
 
   return (
     <div>
-      <h1>محصولات و مقالات</h1>
-      <p className="muted small">{faNum(products.length)} محصول · {faNum(articles.length)} مقاله</p>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead><tr><th>نوع</th><th>نام</th><th>موجودی</th><th>آدرس</th></tr></thead>
-        <tbody>
-          {items.slice(0, 300).map((i, idx) => (
-            <tr key={idx} style={{ borderTop: "1px solid #333" }}>
-              <td>{i.kind === "product" ? "محصول" : "مقاله"}</td>
-              <td style={{ fontSize: 13 }}>{i.name || "—"}</td>
-              <td>{i.available == null ? "—" : i.available ? "موجود" : "ناموجود"}</td>
-              <td className="ltr mono" style={{ fontSize: 12 }}>{i.url}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="page-head"><div className="head-title"><h1>محصولات و مقالات</h1></div></div>
+      <p className="page-note">{faNum(products.length)} محصول · {faNum(articles.length)} مقاله</p>
+      <div className="table-wrap">
+        <table>
+          <thead><tr><th>نوع</th><th>نام</th><th>موجودی</th><th>آدرس</th></tr></thead>
+          <tbody>
+            {items.slice(0, 300).map((i, idx) => (
+              <tr key={idx}>
+                <td>{i.kind === "product" ? "محصول" : "مقاله"}</td>
+                <td style={{ fontSize: 13 }}>{i.name || "—"}</td>
+                <td>{i.available == null ? <span className="muted">—</span> : i.available ? <span className="chip ok">موجود</span> : <span className="chip danger">ناموجود</span>}</td>
+                <td className="url">{i.url}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

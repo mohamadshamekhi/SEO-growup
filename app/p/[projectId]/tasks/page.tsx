@@ -18,8 +18,8 @@ export default async function TasksTab({ params }: { params: Promise<{ projectId
 
   return (
     <div>
-      <h1>کارها</h1>
-      <p className="muted small">{faNum(rows.length)} کار</p>
+      <div className="page-head"><div className="head-title"><h1>کارها</h1></div></div>
+      <p className="page-note">{faNum(rows.length)} کار</p>
       <TasksClient projectId={projectId} initialTasks={rows} />
     </div>
   );
