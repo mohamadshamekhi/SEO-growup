@@ -36,6 +36,10 @@ export function many(sql: string, rows: unknown[][]) {
 // Generic key-value escape hatch, ported from Python's `settings` table usage
 // (hub/db.py get_setting/set_setting) — many "features" live here as JSON blobs
 // instead of their own table; port each key's shape as it's encountered, not upfront.
+export function now(): number {
+  return Date.now() / 1000;
+}
+
 export function getSetting<T = unknown>(key: string, fallback: T): T {
   const row = one<{ value: string }>("SELECT value FROM settings WHERE key=?", key);
   if (!row) return fallback;

@@ -23,6 +23,7 @@ import { ping } from "../tools";
 import { pull as gscPull } from "../gsc";
 import { pull as gaPull } from "../ga";
 import { runSpeed } from "../pagespeed";
+import { audit, saveAudit } from "../crawl";
 
 export type Job = { project: string; kind: string; auto?: boolean; ids?: number[]; user?: string; [k: string]: unknown };
 
@@ -53,7 +54,7 @@ const lanes = shared.lanes;
 const HISTORY_MAX = 30;
 
 // Not yet ported from Python; each is added as its owning module lands.
-const NOT_IMPLEMENTED = new Set(["audit", "catalog", "watch", "kwgap", "prices", "report", "apply", "undo", "index", "articles", "recheck"]);
+const NOT_IMPLEMENTED = new Set(["catalog", "watch", "kwgap", "prices", "report", "apply", "undo", "index", "articles", "recheck"]);
 
 function laneFor(kind: string): Lane {
   if (kind === "apply" || kind === "undo") return "writeJobs";
@@ -74,7 +75,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function runJob(job: Job, progress: (done: number, total: number, message: string) => void): Promise<{ status: "ok" | "error"; summary?: unknown; error?: string }> {
+async function runJob(job: Job, rid: number | bigint, progress: (done: number, total: number, message: string) => void): Promise<{ status: "ok" | "error"; summary?: unknown; error?: string }> {
   if (job.kind === "uptime") {
     const p = project(job.project);
     if (!p) return { status: "error", error: "پروژه پیدا نشد" };
@@ -90,6 +91,18 @@ async function runJob(job: Job, progress: (done: number, total: number, message:
       // Python scheduler also runs after a GSC pull are Phase 5b/5e — not run here yet.
       try { await gaPull(p); } catch { /* GA is optional; a GSC-only pull still counts as ok */ }
       return { status: "ok", summary: r };
+    } catch (e) {
+      return { status: "error", error: String((e as Error).message || e).slice(0, 500) };
+    }
+  }
+  if (job.kind === "audit") {
+    const p = project(job.project);
+    if (!p) return { status: "error", error: "پروژه پیدا نشد" };
+    try {
+      const result = await audit(p, (k) => progress(k.done ?? 0, k.total ?? 0, k.message ?? ""), !!job.only_open);
+      saveAudit(job.project, Number(rid), result);
+      run("UPDATE runs SET score=? WHERE id=?", result.score, rid);
+      return { status: "ok", summary: result.summary };
     } catch (e) {
       return { status: "error", error: String((e as Error).message || e).slice(0, 500) };
     }
@@ -126,7 +139,7 @@ export async function startWorker(lane: Lane, slot: "current" | "writing" | "rea
     state[slot] = { ...job, started, done: 0, total: 0, message: "" };
     const rid = run("INSERT INTO runs(project_id, kind, started_at, status) VALUES (?,?,?, 'running')", job.project, job.kind, started).lastInsertRowid;
     try {
-      const result = await runJob(job, (done, total, message) => {
+      const result = await runJob(job, rid, (done, total, message) => {
         if (state[slot]) state[slot] = { ...(state[slot] as Job & { started: number }), done, total, message };
       });
       run("UPDATE runs SET finished_at=?, status=?, summary=?, error=? WHERE id=?",
