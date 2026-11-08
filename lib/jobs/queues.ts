@@ -25,6 +25,7 @@ import { pull as gaPull } from "../ga";
 import { runSpeed } from "../pagespeed";
 import { audit, saveAudit } from "../crawl";
 import { runKwgap } from "../kwgap";
+import { applyFixes } from "../adapters";
 import { dropFailed, track as trackKeywords } from "../keywords";
 
 export type Job = { project: string; kind: string; auto?: boolean; ids?: number[]; user?: string; [k: string]: unknown };
@@ -55,8 +56,11 @@ const lanes = shared.lanes;
 
 const HISTORY_MAX = 30;
 
-// Not yet ported from Python; each is added as its owning module lands.
-const NOT_IMPLEMENTED = new Set(["catalog", "watch", "prices", "report", "apply", "undo", "index", "articles", "recheck"]);
+// Not yet ported from Python; each is added as its owning module lands. "undo" here is the
+// queued BULK rollback (hub/policy.py's undo_batch — several `applied` rows at once), which
+// needs policy.py (not ported, Phase 5e) — distinct from the single-item, synchronous undo
+// POST /api/applied/[id]/undo already does via adapters.undoApplied(), which is real.
+const NOT_IMPLEMENTED = new Set(["catalog", "watch", "prices", "report", "undo", "index", "articles", "recheck"]);
 
 function laneFor(kind: string): Lane {
   if (kind === "apply" || kind === "undo") return "writeJobs";
@@ -106,6 +110,16 @@ async function runJob(job: Job, rid: number | bigint, progress: (done: number, t
       saveAudit(job.project, Number(rid), result);
       run("UPDATE runs SET score=? WHERE id=?", result.score, rid);
       return { status: "ok", summary: result.summary };
+    } catch (e) {
+      return { status: "error", error: String((e as Error).message || e).slice(0, 500) };
+    }
+  }
+  if (job.kind === "apply") {
+    const p = project(job.project);
+    if (!p) return { status: "error", error: "پروژه پیدا نشد" };
+    try {
+      const r = await applyFixes(p, (job.ids as number[]) || [], (job.user as string) || "", progress);
+      return { status: "ok", summary: r };
     } catch (e) {
       return { status: "error", error: String((e as Error).message || e).slice(0, 500) };
     }
