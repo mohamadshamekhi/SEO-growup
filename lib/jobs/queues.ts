@@ -27,6 +27,7 @@ import { audit, saveAudit } from "../crawl";
 import { runKwgap } from "../kwgap";
 import { applyFixes } from "../adapters";
 import { runCatalog } from "../catalog";
+import { undoBatch, watch as policyWatch } from "../policy";
 import { dropFailed, track as trackKeywords } from "../keywords";
 
 export type Job = { project: string; kind: string; auto?: boolean; ids?: number[]; user?: string; [k: string]: unknown };
@@ -57,11 +58,8 @@ const lanes = shared.lanes;
 
 const HISTORY_MAX = 30;
 
-// Not yet ported from Python; each is added as its owning module lands. "undo" here is the
-// queued BULK rollback (hub/policy.py's undo_batch — several `applied` rows at once), which
-// needs policy.py (not ported, Phase 5e) — distinct from the single-item, synchronous undo
-// POST /api/applied/[id]/undo already does via adapters.undoApplied(), which is real.
-const NOT_IMPLEMENTED = new Set(["watch", "prices", "report", "undo", "index", "articles", "recheck"]);
+// Not yet ported from Python; each is added as its owning module lands.
+const NOT_IMPLEMENTED = new Set(["watch", "prices", "report", "index", "articles", "recheck"]);
 
 function laneFor(kind: string): Lane {
   if (kind === "apply" || kind === "undo") return "writeJobs";
@@ -96,8 +94,16 @@ async function runJob(job: Job, rid: number | bigint, progress: (done: number, t
       const r = await gscPull(p);
       trackKeywords(p.id);
       // growth.measure()/funnel.measure_tests()/oos_propose() that the Python scheduler
-      // also runs after a GSC pull are Phase 5e — not run here yet.
+      // also runs after a GSC pull are Phase 5e — not run here yet, so policy.watch() below
+      // currently only sees whatever `impact`/`experiments` rows already exist (from the
+      // Python app's own prior runs), not fresh ones from this pull.
       try { await gaPull(p); } catch { /* GA is optional; a GSC-only pull still counts as ok */ }
+      try {
+        // ga.trackingAlerts()/funnel.paidOosAlerts() would normally be sent here too
+        // (Telegram, via hub/publisher.py — Phase 5e); logged instead of silently dropped.
+        const alerts = await policyWatch(p);
+        for (const text of alerts) console.log(`[alert:${p.id}]`, text);
+      } catch (e) { console.error("[policy.watch]", e); }
       return { status: "ok", summary: r };
     } catch (e) {
       return { status: "error", error: String((e as Error).message || e).slice(0, 500) };
@@ -124,6 +130,10 @@ async function runJob(job: Job, rid: number | bigint, progress: (done: number, t
     } catch (e) {
       return { status: "error", error: String((e as Error).message || e).slice(0, 500) };
     }
+  }
+  if (job.kind === "undo") {
+    const r = await undoBatch(job.project, (job.ids as number[]) || [], progress);
+    return { status: "ok", summary: r };
   }
   if (job.kind === "apply") {
     const p = project(job.project);
