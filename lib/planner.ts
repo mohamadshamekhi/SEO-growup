@@ -18,14 +18,14 @@ const ARTICLE_TYPES: Record<string, [string, number, number]> = {
 };
 // Jalali month/day of occasions shoppers plan for.
 const OCCASIONS: [number, number, string][] = [[1, 1, "نوروز"], [2, 12, "روز معلم"], [6, 31, "بازگشایی مدارس"], [8, 13, "روز دانش‌آموز"], [9, 16, "روز دانشجو"], [9, 30, "شب یلدا"], [12, 1, "خرید عید"]];
-const SIMILAR = 0.6;
+export const SIMILAR = 0.6;
 
 function norm(s: string): string {
   const x = String(s || "").toLowerCase().replace(/‌/g, " ").replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/آ/g, "ا").replace(/أ/g, "ا");
   return x.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)));
 }
 
-function tok(s: string): Set<string> {
+export function tok(s: string): Set<string> {
   return catalogTokens(norm(s));
 }
 
