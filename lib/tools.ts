@@ -3,8 +3,10 @@
 // crawl.fetchUrl(), since check_sources() (hub/content.py) needs real redirect-hop-by-hop
 // following with headers, which crawl.ts already has.
 import dns from "node:dns/promises";
+import fs from "node:fs";
 import net from "node:net";
-import { one, run } from "./db";
+import path from "node:path";
+import { DATA_DIR, one, run } from "./db";
 import type { ProjectRow } from "./projects";
 import { fetchUrl, ldTypes, parsePage, contentWords } from "./crawl";
 
@@ -160,4 +162,119 @@ export async function compare(projectId: string, mine: string, others: string[])
   data.tips = tips;
   const id = run("INSERT INTO compares(project_id, ts, data) VALUES (?,?,?)", projectId, Date.now() / 1000, JSON.stringify(data)).lastInsertRowid;
   return { id, ...data };
+}
+
+// ---------- images ----------
+export async function ogImage(pageUrl: string): Promise<string | null> {
+  const r = await safeFetch(pageUrl);
+  const p = parsePage(r.body);
+  const img = p.meta["og:image"];
+  return img ? new URL(img, r.final).toString() : null;
+}
+
+export function shade(hexcol: string, f: number): string {
+  const h = hexcol.replace(/^#/, "");
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const mix = f < 1 ? (c: number) => c * f : (c: number) => c + (255 - c) * (f - 1);
+  const clamp = (c: number) => Math.max(0, Math.min(255, Math.trunc(mix(c))));
+  return `#${[r, g, b].map((c) => clamp(c).toString(16).padStart(2, "0")).join("")}`;
+}
+
+const SIZES: Record<string, [number, number]> = { cover: [1200, 675], og: [1200, 630], post: [1080, 1350], story: [1080, 1920] };
+
+function findChrome(): string {
+  const macChrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+  if (process.env.HUB_CHROME) return process.env.HUB_CHROME;
+  if (fs.existsSync(macChrome)) return macChrome;
+  const { execSync } = require("node:child_process") as typeof import("node:child_process");
+  for (const name of ["chromium", "chromium-browser", "google-chrome"]) {
+    try {
+      const p = execSync(`which ${name}`, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+      if (p) return p;
+    } catch { /* not found; try next */ }
+  }
+  return macChrome;
+}
+
+function escapeHtmlAttr(s: string): string {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+export type ImageSpec = {
+  template?: "cover" | "og" | "post" | "story"; images?: string[]; pages?: string[]; theme?: "brand" | "dark" | "light";
+  accent?: string; title?: string; subtitle?: string; badge?: string; footer?: string;
+};
+
+/** Branded image rendering via a real headless browser (Playwright driving the system's
+ * installed Chrome/Chromium — Playwright's own bundled-browser download is geo-blocked in
+ * this environment, so executablePath always points at an already-installed browser, same
+ * HUB_CHROME-env-first fallback chain as Python's CHROME constant). */
+export async function renderImage(project: ProjectRow, spec: ImageSpec): Promise<{ id: number | bigint; file: string }> {
+  const t = spec.template || "cover";
+  const [w, h] = SIZES[t];
+  let images = (spec.images || []).filter((u) => u.startsWith("http")).slice(0, 3);
+  for (const page of (spec.pages || []).slice(0, 3)) {
+    const img = await ogImage(page);
+    if (img) images.push(img);
+  }
+  images = images.slice(0, 3);
+  if (!images.length) throw new Error("هیچ عکسی پیدا نشد (آدرس عکس یا صفحه‌ای با og:image بدهید)");
+  const col = project.color || "#5a4fcf";
+  const theme = spec.theme || "brand";
+  const THEMES: Record<string, [string, string, string, string]> = {
+    brand: [shade(col, 0.45), col, "#fff", spec.accent || "#ed1944"],
+    dark: ["#0b0b14", shade(col, 0.5), "#fff", col],
+    light: [shade(col, 1.92), shade(col, 1.75), shade(col, 0.4), col],
+  };
+  const [bg1, bg2, fg, accent] = THEMES[theme];
+  const vertical = h > w;
+  const n = images.length;
+  const title = spec.title || "", subtitle = spec.subtitle || "", badge = spec.badge || "";
+  let tsize = { cover: 64, og: 60, post: 84, story: 96 }[t];
+  if (title.length > 40) tsize = Math.trunc(tsize * 0.8);
+  if (title.length > 70) tsize = Math.trunc(tsize * 0.82);
+  const logo = project.logo_url || "";
+  const footer = spec.footer || project.domain;
+  const cards = images.map((u) => `<div class="ph"><img src="${escapeHtmlAttr(u)}" alt=""></div>`).join("");
+  const page = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;900&display=swap" rel="stylesheet"><style>
+*{box-sizing:border-box;margin:0} html,body{width:${w}px;height:${h}px;overflow:hidden}
+body{font-family:Vazirmatn,sans-serif;color:${fg};background:radial-gradient(circle at ${vertical ? "50% 30%" : "22% 50%"},${bg2} 0%,${bg1} 72%);
+display:flex;flex-direction:${vertical ? "column" : "row"};padding:${vertical ? "90px 80px 110px" : "64px 72px"};gap:${vertical ? "48px" : "40px"};position:relative}
+body::before{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.07) 1.5px,transparent 1.5px);background-size:28px 28px}
+.text{flex:${vertical ? "0 0 auto" : "1 1 52%"};display:flex;flex-direction:column;justify-content:${vertical ? "flex-start" : "center"};gap:22px;position:relative;z-index:1}
+.logo{height:${vertical ? 80 : 54}px;align-self:flex-start;background:#fff;padding:10px 16px;border-radius:16px;box-sizing:content-box}
+.brand{align-self:flex-start;font-weight:900;font-size:${vertical ? 40 : 30}px}
+.badge{align-self:flex-start;background:${accent};color:#fff;font-weight:700;font-size:${vertical ? 34 : 26}px;padding:6px 24px;border-radius:99px}
+h1{font-weight:900;font-size:${tsize}px;line-height:1.35;text-wrap:balance} p{font-size:${vertical ? 40 : 30}px;opacity:.85;line-height:1.6}
+.media{flex:1 1 ${vertical ? "0" : "48%"};position:relative;z-index:1;display:${n === 1 ? "grid" : "flex"};place-items:center;align-items:center;gap:18px;min-height:0}
+.ph{background:#fff;border-radius:28px;box-shadow:0 30px 60px rgba(0,0,0,.35);border:8px solid #fff;overflow:hidden;aspect-ratio:1;
+${vertical && n === 1 ? `height:${n === 1 ? "100%" : "72%"};width:auto;max-width:100%` : n === 1 ? "width:86%" : "flex:1 1 0"}}
+.ph:nth-child(2):not(:last-child){transform:scale(1.12);z-index:2} .ph img{width:100%;height:100%;object-fit:cover;border-radius:20px}
+.foot{position:absolute;bottom:${vertical ? 44 : 26}px;inset-inline:0;text-align:center;font-size:${vertical ? 30 : 20}px;opacity:.7;z-index:1;direction:ltr}
+</style></head><body>
+<div class="text">${logo ? `<img class="logo" src="${escapeHtmlAttr(logo)}" alt="">` : `<span class="brand">${escapeHtmlAttr(project.name)}</span>`}
+${badge ? `<span class="badge">${escapeHtmlAttr(badge)}</span>` : ""}<h1>${escapeHtmlAttr(title)}</h1>${subtitle ? `<p>${escapeHtmlAttr(subtitle)}</p>` : ""}</div>
+<div class="media">${cards}</div>${footer ? `<div class="foot">${escapeHtmlAttr(footer)}</div>` : ""}</body></html>`;
+
+  const outDir = path.join(DATA_DIR, "images", project.id);
+  fs.mkdirSync(outDir, { recursive: true });
+  const slug = title.replace(/[^\p{L}\p{N}_-]+/gu, "-").slice(0, 40).replace(/^-+|-+$/g, "") || "image";
+  const now2 = new Date();
+  const stamp = `${now2.getFullYear()}${String(now2.getMonth() + 1).padStart(2, "0")}${String(now2.getDate()).padStart(2, "0")}-${String(now2.getHours()).padStart(2, "0")}${String(now2.getMinutes()).padStart(2, "0")}${String(now2.getSeconds()).padStart(2, "0")}`;
+  const outFile = path.join(outDir, `${stamp}_${t}_${slug}.png`);
+
+  const { chromium } = await import("playwright");
+  const browser = await chromium.launch({ executablePath: findChrome(), headless: true });
+  try {
+    const browserPage = await browser.newPage({ viewport: { width: w, height: h } });
+    await browserPage.setContent(page, { waitUntil: "networkidle", timeout: 30_000 });
+    await browserPage.screenshot({ path: outFile, timeout: 30_000 });
+  } finally {
+    await browser.close();
+  }
+
+  const rel = path.relative(DATA_DIR, outFile).split(path.sep).join("/");
+  const iid = run("INSERT INTO images(project_id, ts, file, spec) VALUES (?,?,?,?)", project.id, Date.now() / 1000, rel, JSON.stringify({ ...spec, images })).lastInsertRowid;
+  return { id: iid, file: rel };
 }

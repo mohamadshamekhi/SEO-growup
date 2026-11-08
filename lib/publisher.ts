@@ -8,9 +8,6 @@
 // undo() and lib/prices.ts's check() — never invoked against the real site/bot from here
 // without the user's explicit go-ahead each time.
 //
-// tools.render_image() (hub/tools.py, Playwright-based cover-image generation) isn't ported
-// yet, so coverImage() throws honestly instead of faking a file, same pattern as
-// lib/growth.ts's liveArticle()/addIdeaIfPossible() stubs.
 import fs from "node:fs";
 import path from "node:path";
 import * as adapters from "./adapters";
@@ -18,6 +15,7 @@ import { catalogRows } from "./catalog";
 import type { ContentRow } from "./content";
 import { get as getContent } from "./content";
 import { DATA_DIR, getSetting, now as dbNow, q, run, setSetting } from "./db";
+import { renderImage } from "./tools";
 import * as planner from "./planner";
 import type { ProjectRow } from "./projects";
 
@@ -134,11 +132,6 @@ export function postMessage(c: ContentRow): string {
 }
 
 // ---------- site draft ----------
-/** hub/tools.py's render_image() (Playwright) isn't ported yet. */
-async function renderImage(_project: ProjectRow, _spec: { template: string; title: string; images: string[] }): Promise<{ file: string }> {
-  throw new Error("ساخت عکس کاور هنوز در نسخه Next.js پیاده نشده (hub/tools.py's render_image ported نشده)");
-}
-
 export async function coverImage(project: ProjectRow, c: ContentRow): Promise<string> {
   const o = c.output;
   if (o.image_file) return o.image_file as string;
