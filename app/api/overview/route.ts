@@ -1,10 +1,10 @@
-// Ported from server.py's GET /api/overview. priorities() (crawl.CHECKS-based, plus
-// keywords.proposals() which isn't ported — hub/keywords.py's Claude-review workflow) is
-// still stubbed empty. jobs/writer/gsc_key/my_tasks are real.
+// Ported from server.py's GET /api/overview. priorities() skips the one bullet needing
+// keywords.proposals() (hub/keywords.py's Claude-review workflow isn't ported) — everything
+// else is real.
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/access";
 import { role, visibleProjects } from "@/lib/auth";
-import { projectSummary, jobsState } from "@/lib/overview";
+import { projectSummary, jobsState, priorities } from "@/lib/overview";
 import { writerState, writerAvailable } from "@/lib/jobs/writer";
 import { keyInfo } from "@/lib/gsc";
 import { q } from "@/lib/db";
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     projects,
     jobs: jobsState(new Set(visible.map((p) => p.id))),
     gsc_key: user.is_admin ? gk : !!gk,
-    priorities: [],
+    priorities: priorities(user, !!gk),
     my_tasks: myTasks,
     writer_available: writerAvailable(),
     writer: user.is_admin ? { running: w.running, project: w.project, what: w.what } : { running: w.running },

@@ -1,9 +1,12 @@
-// Ported from server.py's summary()/uptime_stats() — the data behind the dashboard tab and
-// the projects picker. priorities()/writer_available()/gsc_key (which need crawl.CHECKS,
-// the GSC key, and the writer-slot) are deferred to the phases that port those modules;
-// /api/overview returns stub values for those fields in the meantime, documented below.
+// Ported from server.py's summary()/uptime_stats()/current_errors()/friendly()/priorities().
+// keywords.proposals() (hub/keywords.py's Claude-review workflow) isn't ported, so
+// priorities() skips that one bullet (the "پیشنهاد ..." items) rather than faking it.
 import { one, q } from "./db";
+import { CHECKS } from "./checks";
 import { state, type RunningSlot } from "./jobs/queues";
+import { visibleProjects, type User } from "./auth";
+import { refreshes } from "./growth";
+import { newPages } from "./kwgap";
 import type { ProjectRow } from "./projects";
 
 export type UptimeStats = { pct: number | null; avg_ms: number | null; last: { ts: number; status: number; ms: number } | null; checks: number };
@@ -20,6 +23,22 @@ export function uptimeStats(pid: string, hours = 24): UptimeStats {
     last: rows[rows.length - 1],
     checks: rows.length,
   };
+}
+
+function friendly(err: string): string {
+  if (err.includes("دسترسی ندارد") || err.includes("پیدا نشد")) return "این سایت به حساب Search Console وصل نیست.";
+  return err.split("{")[0].trim().slice(0, 200);
+}
+
+export type CurrentError = { kind: string; status: string; error: string; started_at: number };
+
+export function currentErrors(pid: string): CurrentError[] {
+  const out: CurrentError[] = [];
+  for (const k of ["audit", "catalog", "gsc"]) {
+    const r = one<CurrentError>("SELECT kind, status, error, started_at FROM runs WHERE project_id=? AND kind=? ORDER BY id DESC LIMIT 1", pid, k);
+    if (r && r.status === "error" && r.error !== "interrupted") out.push({ ...r, error: friendly(r.error) });
+  }
+  return out;
 }
 
 type Audit = { id: number; started_at: number; score: number | null; summary: string; status: string };
@@ -66,8 +85,7 @@ export function projectSummary(p: ProjectRow) {
     gsc,
     running,
     queued: state.queued.filter((j) => j.project === pid).map((j) => j.kind),
-    // Phase 2 (crawl.CHECKS) will fill this from runs.error for audit/gsc/etc.
-    last_errors: [] as unknown[],
+    last_errors: currentErrors(pid),
   };
 }
 
@@ -87,4 +105,76 @@ export function jobsState(visiblePids: Set<string>) {
     queued: state.queued.filter((j) => visiblePids.has(j.project)),
     history: state.history.filter((h) => visiblePids.has(h.project)).slice(0, 10),
   };
+}
+
+type PriorityItem = { rank: number; tone: "danger" | "warn" | "info" | "muted"; project: string; project_name: string; title: string; why: string; action: string; href: string; fix_id?: number };
+
+/** What deserves attention now, across the user's projects, most urgent first. */
+export function priorities(user: User, hasGscKey: boolean): PriorityItem[] {
+  const items: PriorityItem[] = [];
+  const add = (rank: number, tone: PriorityItem["tone"], pid: string, name: string, title: string, why: string, action: string, href: string) => {
+    items.push({ rank, tone, project: pid, project_name: name, title, why, action, href });
+  };
+  for (const p of visibleProjects(user)) {
+    const pid = p.id, name = p.name;
+    const link = (t: string) => `#/p/${pid}/${t}`;
+    const last = one<{ status: number | null }>("SELECT status FROM uptime WHERE project_id=? ORDER BY ts DESC LIMIT 1", pid);
+    if (last && !(last.status !== null && last.status >= 200 && last.status < 400)) {
+      add(0, "danger", pid, name, "سایت از دسترس خارج است", `آخرین بررسی کد ${last.status || "بدون پاسخ"} برگرداند.`, "دیدن آپتایم", link("uptime"));
+    }
+    const groups = q<{ code: string; severity: string; n: number }>(
+      "SELECT code, severity, COUNT(*) n FROM issues WHERE project_id=? AND status='open' AND severity!='info' GROUP BY code ORDER BY CASE severity WHEN 'critical' THEN 0 ELSE 1 END, n DESC",
+      pid,
+    );
+    for (const g of groups.filter((x) => x.severity === "critical")) {
+      const c = CHECKS[g.code];
+      if (c) add(1, "danger", pid, name, c[1], `${g.n} مورد. ${c[2]}`, "دیدن مشکل", link("issues"));
+    }
+    for (const g of groups.filter((x) => x.severity === "warning").slice(0, 2)) {
+      const c = CHECKS[g.code];
+      if (c) add(4, "warn", pid, name, c[1], `${g.n} مورد. ${c[2]}`, "دیدن مشکل", link("issues"));
+    }
+    if (user.is_admin && hasGscKey && currentErrors(pid).some((e) => e.kind === "gsc")) {
+      add(2, "warn", pid, name, "Search Console این سایت وصل نیست", "ایمیل حساب سرویس را در Search Console این سایت اضافه کنید.", "راهنمای اتصال", "#/settings");
+    }
+    const g = one<{ status: string; summary: string }>("SELECT status, summary FROM runs WHERE project_id=? AND kind='gsc' ORDER BY id DESC LIMIT 1", pid);
+    if (user.is_admin && g && g.status === "ok" && JSON.parse(g.summary || "{}").days === 0) {
+      add(2, "warn", pid, name, "Search Console داده‌ای نداد", "این property کلیک و نمایشی ندارد. property درست (با www یا Domain) را به حساب سرویس بدهید.", "راهنمای اتصال", "#/settings");
+    }
+    let n = one<{ n: number }>("SELECT COUNT(*) n FROM tasks WHERE project_id=? AND status!='done' AND assignee_id=?", pid, user.id)!.n;
+    if (n) add(1, "info", pid, name, "کارهای واگذارشده به شما", `${n} کار باز دارید.`, "دیدن کارها", link("tasks"));
+    n = one<{ n: number }>("SELECT COUNT(*) n FROM content WHERE project_id=? AND status='review'", pid)!.n;
+    if (n) add(2, "info", pid, name, "محتوای منتظر بازبینی", `${n} مورد نوشته شده و منتظر تأیید شماست.`, "بازبینی", link("content"));
+    n = one<{ n: number }>("SELECT COUNT(*) n FROM fixes WHERE project_id=? AND status='approved'", pid)!.n;
+    if (n) add(3, "info", pid, name, "اصلاح تأییدشده برای ثبت در سایت", `${n} مورد آماده ثبت در بک‌آفیس است.`, "خروجی گرفتن", link("products"));
+    const snap = one<{ s: number | null }>("SELECT MAX(snap) s FROM gsc_snap WHERE project_id=?", pid)?.s;
+    if (snap) {
+      const r = one<{ key: string; impressions: number; position: number }>(
+        "SELECT key, impressions, position FROM gsc_snap WHERE project_id=? AND snap=? AND dim='query' AND position BETWEEN 8 AND 20 AND impressions>=10 ORDER BY impressions DESC LIMIT 1",
+        pid, snap,
+      );
+      if (r) add(3, "info", pid, name, `«${r.key}» نزدیک صفحه اول است`, `جایگاه ${r.position.toFixed(1)} با ${r.impressions.toFixed(0)} نمایش.`, "دیدن فرصت", link("keywords"));
+    }
+    // keywords.proposals() (hub/keywords.py's Claude-review workflow) isn't ported — Python's
+    // equivalent bullet here (up to 3 "پیشنهاد ..." items with a fix_id) is skipped.
+    for (const r of q<{ url: string; id: number }>(
+      "SELECT i.url, MAX(i.applied_id) id FROM impact i JOIN applied a ON a.id=i.applied_id AND a.undone=0 WHERE i.project_id=? AND i.verdict='worse' GROUP BY i.url LIMIT 3",
+      pid,
+    )) {
+      add(1, "danger", pid, name, "بعد از یک تغییر، این صفحه افت کرده", decodeURIComponent(r.url).split("/").pop()!.slice(0, 70), "بررسی و برگرداندن", link("kwgap"));
+    }
+    n = refreshes(pid).length;
+    if (n) add(2, "info", pid, name, "بازنویسی مقاله منتظر تأیید", `${n} مقاله بازنویسی شده و کنار متن فعلی قابل مقایسه است.`, "مقایسه و تأیید", link("kwgap"));
+    n = newPages(pid, 7).length;
+    if (n) add(4, "info", pid, name, "صفحه‌های تازه رقبا", `${n} صفحه تازه در این هفته دیده شد.`, "دیدن و ساخت ایده", link("kwgap"));
+    n = one<{ n: number }>("SELECT COUNT(*) n FROM backlinks WHERE project_id=? AND status='open'", pid)!.n;
+    if (n) add(3, "info", pid, name, "فرصت بک‌لینک", `${n} سایت با متن آماده منتظر ارسال است.`, "دیدن فرصت‌ها", link("kwgap"));
+    n = one<{ n: number }>("SELECT COUNT(*) n FROM tasks WHERE project_id=? AND status!='done' AND assignee_id IS NULL", pid)!.n;
+    if (n) add(3, "warn", pid, name, "کارهای بدون مسئول", `${n} کار هنوز به کسی واگذار نشده.`, "واگذاری", link("tasks"));
+    n = one<{ n: number }>("SELECT COUNT(*) n FROM content WHERE project_id=? AND status='drafted'", pid)!.n;
+    if (n) add(3, "info", pid, name, "پیش‌نویس آماده انتشار", `${n} مقاله در سایت پیش‌نویس است.`, "دیدن محتوا", link("content"));
+    n = one<{ n: number }>("SELECT COUNT(*) n FROM fixes WHERE project_id=? AND status='pending'", pid)!.n;
+    if (n) add(5, "muted", pid, name, "اصلاح‌های در انتظار تصمیم", `${n} پیشنهاد برای محصولات و مقاله‌ها.`, "بررسی", link("products"));
+  }
+  return items.sort((a, b) => a.rank - b.rank);
 }
