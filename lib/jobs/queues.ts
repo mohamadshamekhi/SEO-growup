@@ -24,6 +24,8 @@ import { pull as gscPull } from "../gsc";
 import { pull as gaPull } from "../ga";
 import { runSpeed } from "../pagespeed";
 import { audit, saveAudit } from "../crawl";
+import { runKwgap } from "../kwgap";
+import { dropFailed, track as trackKeywords } from "../keywords";
 
 export type Job = { project: string; kind: string; auto?: boolean; ids?: number[]; user?: string; [k: string]: unknown };
 
@@ -54,7 +56,7 @@ const lanes = shared.lanes;
 const HISTORY_MAX = 30;
 
 // Not yet ported from Python; each is added as its owning module lands.
-const NOT_IMPLEMENTED = new Set(["catalog", "watch", "kwgap", "prices", "report", "apply", "undo", "index", "articles", "recheck"]);
+const NOT_IMPLEMENTED = new Set(["catalog", "watch", "prices", "report", "apply", "undo", "index", "articles", "recheck"]);
 
 function laneFor(kind: string): Lane {
   if (kind === "apply" || kind === "undo") return "writeJobs";
@@ -87,8 +89,9 @@ async function runJob(job: Job, rid: number | bigint, progress: (done: number, t
     if (!p) return { status: "error", error: "پروژه پیدا نشد" };
     try {
       const r = await gscPull(p);
-      // keywords.track()/growth.measure()/funnel.measure_tests()/oos_propose() that the
-      // Python scheduler also runs after a GSC pull are Phase 5b/5e — not run here yet.
+      trackKeywords(p.id);
+      // growth.measure()/funnel.measure_tests()/oos_propose() that the Python scheduler
+      // also runs after a GSC pull are Phase 5e — not run here yet.
       try { await gaPull(p); } catch { /* GA is optional; a GSC-only pull still counts as ok */ }
       return { status: "ok", summary: r };
     } catch (e) {
@@ -103,6 +106,17 @@ async function runJob(job: Job, rid: number | bigint, progress: (done: number, t
       saveAudit(job.project, Number(rid), result);
       run("UPDATE runs SET score=? WHERE id=?", result.score, rid);
       return { status: "ok", summary: result.summary };
+    } catch (e) {
+      return { status: "error", error: String((e as Error).message || e).slice(0, 500) };
+    }
+  }
+  if (job.kind === "kwgap") {
+    const p = project(job.project);
+    if (!p) return { status: "error", error: "پروژه پیدا نشد" };
+    try {
+      const r = await runKwgap(p, progress);
+      dropFailed(p.id, r.failed);
+      return { status: "ok", summary: r };
     } catch (e) {
       return { status: "error", error: String((e as Error).message || e).slice(0, 500) };
     }

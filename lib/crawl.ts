@@ -174,7 +174,7 @@ async function sitemapUrls(smUrl: string, log: (m: string) => void, depth = 0): 
 }
 
 /** Home first, then an even spread across sections so big catalogs don't crowd out other page types. */
-function sample(urls: string[], base: string, limit: number): string[] {
+export function sample(urls: string[], base: string, limit: number): string[] {
   const groups = new Map<string, string[]>();
   for (const u of urls) {
     const kind = pageKind(u, base);
