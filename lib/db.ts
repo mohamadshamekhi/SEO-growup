@@ -40,6 +40,15 @@ export function now(): number {
   return Date.now() / 1000;
 }
 
+/** Matches Python's datetime.date.fromtimestamp(ts).isoformat() — the server's LOCAL
+ * calendar date for a unix timestamp, not UTC. Date#toISOString() is UTC and silently
+ * shifts the date in timezones ahead of UTC (e.g. right after local midnight) — do not use
+ * it for this; found by comparing against Python's actual output. */
+export function localDateStr(ts: number): string {
+  const d = new Date(ts * 1000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function getSetting<T = unknown>(key: string, fallback: T): T {
   const row = one<{ value: string }>("SELECT value FROM settings WHERE key=?", key);
   if (!row) return fallback;

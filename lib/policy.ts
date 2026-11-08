@@ -1,7 +1,7 @@
 // Ported 1:1 from hub/policy.py. Fully self-contained (DB + lib/adapters.ts's config()/
 // undoApplied()) — no dependency on anything still unported.
 import { config, undoApplied } from "./adapters";
-import { getSetting, one, q, run, setSetting } from "./db";
+import { getSetting, localDateStr, one, q, run, setSetting } from "./db";
 import type { ProjectRow } from "./projects";
 
 export const GROUPS = { meta: ["kw_title", "kw_description"], faq: ["kw_faq"], content: ["kw_refresh", "cro_description"] } as const;
@@ -100,9 +100,7 @@ export async function undoPage(pid: string, url: string, appliedId: number) {
   }
 }
 
-function day(ts: number): string {
-  return new Date(ts * 1000).toISOString().slice(0, 10);
-}
+const day = localDateStr;
 
 /** Newest first, so several changes to a page unwind in order. A page changed again by
  * something outside this batch is left alone: its old value would wipe the newer one. */

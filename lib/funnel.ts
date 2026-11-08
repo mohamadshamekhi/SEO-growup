@@ -5,7 +5,7 @@
 // ported but, like the rest of this phase, never invoked against the real site here.
 import * as adapters from "./adapters";
 import { catalogRows, type CatalogItem } from "./catalog";
-import { getSetting, one, q, run, setSetting } from "./db";
+import { getSetting, localDateStr, one, q, run, setSetting } from "./db";
 import * as ga from "./ga";
 import * as growth from "./growth";
 import type { ProjectRow } from "./projects";
@@ -373,9 +373,7 @@ function testVerdict(b: Window, a: Window): string {
   return "same";
 }
 
-function dayStr(ts: number): string {
-  return new Date(ts * 1000).toISOString().slice(0, 10);
-}
+const dayStr = localDateStr;
 function addDays(day: string, n: number): string {
   const d = new Date(`${day}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
