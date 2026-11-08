@@ -211,17 +211,12 @@ export function planWeek(proj: ProjectRow): (number | bigint)[] {
 // ---------- writing agent: same steps locally and from a remote machine ----------
 const WRITABLE_FIXES = ["seo_title", "meta_description", "description"];
 
-function igResults(pid: string, limit = 12) {
-  const posted = listing(pid, "ig_post").filter((c) => (c.output.result as { posted?: boolean } | undefined)?.posted);
-  const score = (c: ContentRow) => {
-    const r = c.output.result as { saves: number; comments: number; likes: number; reach: number };
-    return r.saves * 3 + r.comments * 2 + r.likes + r.reach / 50;
-  };
-  const rows = [...posted].sort((a, b) => score(b) - score(a)).slice(0, limit);
-  return rows.map((c) => {
-    const r = c.output.result as { reach: number; likes: number; comments: number; saves: number };
-    return { format: c.output.format, hook: c.output.hook, type: c.brief.type, reach: r.reach, likes: r.likes, comments: r.comments, saves: r.saves };
-  });
+/** hub/content.py's next_item() calls growth.ig_results() — imported lazily (not at module
+ * top) because growth.ts, in turn, lazily requires this module for the same function; this
+ * mirrors Python's own `from . import growth` placed inside next_item(), not at module top. */
+function igResults(pid: string, limit = 12): ReturnType<typeof import("./growth").igResults> {
+  const { igResults: fn } = require("./growth") as typeof import("./growth");
+  return fn(pid, limit);
 }
 
 export type WriterItem = {

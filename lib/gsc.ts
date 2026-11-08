@@ -48,7 +48,7 @@ export function gscData(pid: string) {
 
 // ---------- live Search Console API (hub/gsc.py) ----------
 
-async function api(apiPath: string, body?: unknown) {
+export async function api(apiPath: string, body?: unknown) {
   const res = await fetch(`https://www.googleapis.com/webmasters/v3${apiPath}`, {
     method: body ? "POST" : "GET",
     headers: { Authorization: `Bearer ${await token(GSC_SCOPE)}`, "Content-Type": "application/json" },
