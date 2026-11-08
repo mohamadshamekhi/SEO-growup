@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/client/api";
+import Icon from "@/components/Icon";
 
 type AuthState = { setup_needed: boolean; can_setup: boolean; user: { id: number } | null };
 
@@ -45,41 +46,41 @@ export default function LoginPage() {
   if (!state) return null;
 
   return (
-    <main style={{ maxWidth: 360, margin: "80px auto", padding: "0 16px" }}>
-      <h1>Growth Hub</h1>
-      <h2 style={{ fontSize: 16, fontWeight: 400, color: "var(--muted, #888)" }}>
-        {state.setup_needed ? "ساخت مدیر اول" : "ورود"}
-      </h2>
-      {state.setup_needed && !state.can_setup && (
-        <p role="alert">ساخت مدیر اول فقط از خود این کامپیوتر ممکن است.</p>
-      )}
-      <form onSubmit={submit} className="form-grid" style={{ display: "grid", gap: 12 }}>
-        {state.setup_needed && (
-          <div className="field">
-            <label htmlFor="name">نام</label>
-            <input id="name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
-          </div>
+    <div id="auth">
+      <div className="auth-card">
+        <div className="brand"><span className="brand-mark"><Icon name="trend" /></span>Growth Hub</div>
+        <h1>{state.setup_needed ? "ساخت مدیر اول" : "ورود"}</h1>
+        {state.setup_needed && !state.can_setup && (
+          <p role="alert" className="err">ساخت مدیر اول فقط از خود این کامپیوتر ممکن است.</p>
         )}
-        <div className="field">
-          <label htmlFor="username">نام کاربری</label>
-          <input id="username" value={username} onChange={(e) => setUsername(e.target.value)} required autoComplete="username" className="ltr mono" />
-        </div>
-        <div className="field">
-          <label htmlFor="password">رمز</label>
-          <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required
-            autoComplete={state.setup_needed ? "new-password" : "current-password"} className="ltr" />
-        </div>
-        {needsCode && (
+        <form onSubmit={submit} style={{ display: "grid", gap: 12 }}>
+          {state.setup_needed && (
+            <div className="field">
+              <label htmlFor="name">نام</label>
+              <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
+            </div>
+          )}
           <div className="field">
-            <label htmlFor="code">کد دومرحله‌ای</label>
-            <input id="code" value={code} onChange={(e) => setCode(e.target.value)} className="ltr mono" autoFocus />
+            <label htmlFor="username">نام کاربری</label>
+            <input id="username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} required autoComplete="username" className="ltr mono" />
           </div>
-        )}
-        {err && <div className="err" role="alert">{err}</div>}
-        <button className="btn primary" type="submit" disabled={busy || (state.setup_needed && !state.can_setup)}>
-          {state.setup_needed ? "ساخت و ورود" : "ورود"}
-        </button>
-      </form>
-    </main>
+          <div className="field">
+            <label htmlFor="password">رمز</label>
+            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required
+              autoComplete={state.setup_needed ? "new-password" : "current-password"} className="ltr" />
+          </div>
+          {needsCode && (
+            <div className="field">
+              <label htmlFor="code">کد دومرحله‌ای</label>
+              <input id="code" type="text" value={code} onChange={(e) => setCode(e.target.value)} className="ltr mono" autoFocus />
+            </div>
+          )}
+          {err && <div className="err" role="alert">{err}</div>}
+          <button className="btn primary" type="submit" disabled={busy || (state.setup_needed && !state.can_setup)}>
+            {state.setup_needed ? "ساخت و ورود" : "ورود"}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }
