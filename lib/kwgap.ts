@@ -34,6 +34,18 @@ export function words(text: string): string[] {
   return norm(text).match(WORD_RE) || [];
 }
 
+function plainText(html: string): string {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** title, up to 2 H1s, up to 15 H2s — plain text, tags stripped. */
+export function readPage(body: string): [string, string[], string[]] {
+  const p = parsePage(body);
+  const h1 = [...body.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/gi)].map((m) => plainText(m[1])).filter(Boolean).slice(0, 2);
+  const h2 = [...body.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)].map((m) => plainText(m[1])).filter(Boolean).slice(0, 15);
+  return [p.title, h1, h2];
+}
+
 export function domains(project: ProjectRow): string[] {
   const out: string[] = [];
   const own = project.domain.toLowerCase().replace(/^www\./, "");
