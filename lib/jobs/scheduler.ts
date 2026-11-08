@@ -1,20 +1,30 @@
-// Replaces hub/schedule.py + server.py's scheduler() loop. Real per-project due-time logic
-// (reading the `schedule:<pid>` JSON blob from `settings`, same as Python) lands in Phase 4
-// alongside the real worker dispatch; this stub proves the 60s-poll shape at boot.
-import { q } from "../db";
+// Replaces server.py's scheduler() loop. Every 60s, for each project and each job kind in
+// its schedule, checks isDue() and enqueues — real due-time logic (lib/schedule.ts), even
+// though most job kinds still just record a "not implemented" error once dispatched (see
+// lib/jobs/queues.ts). This is deliberate: the scheduler itself, and the runs history it
+// produces, should be real and inspectable now, not faked until Phase 5 modules land.
+import { projects } from "../projects";
+import { get, isDue, lastTimes, type JobKey } from "../schedule";
+import { enqueue } from "./queues";
 
 const POLL_MS = 60_000;
 
-export function startScheduler() {
-  const tick = () => {
+function tick() {
+  const now = Date.now() / 1000;
+  for (const p of projects()) {
     try {
-      const projects = q<{ id: string }>("SELECT id FROM projects");
-      // Phase 4: for each project, check schedule.isDue() per job kind and enqueue().
-      void projects;
+      const jobs = get(p);
+      const last = lastTimes(p.id);
+      for (const key of Object.keys(jobs) as JobKey[]) {
+        if (isDue(jobs[key], last[key], now)) enqueue({ project: p.id, kind: key, auto: true });
+      }
     } catch (err) {
-      console.error("[scheduler]", err);
+      console.error(`[scheduler] ${p.id}:`, err);
     }
-  };
+  }
+}
+
+export function startScheduler() {
   tick();
   return setInterval(tick, POLL_MS);
 }

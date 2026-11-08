@@ -1,27 +1,30 @@
 // Replaces server.py's global `writer` dict — the single-writer-slot invariant ensuring
-// only one `claude -p` (or one remote-agent job) runs at a time across the whole process.
-// Per the approved plan, the remote-agent poll pattern (agent.py talking to /api/agent/*)
-// is primary in the Next.js version; this local-spawn path stays behind HUB_LOCAL_WRITER
-// for dev only. Phase 4 wires the actual child_process.spawn + 30-minute timeout.
-type WriterState = { running: boolean; project: string | null; what: string | null; started: number | null; log: string };
+// only one Claude Code writing job runs at a time across the whole process (local subprocess
+// or, per the approved plan, a remote agent.py polling /api/agent/poll — the primary path
+// here, since it doesn't require the `claude` CLI on this machine). What a writer actually
+// *does* (hub/content.py's writer_command, the content/keywords/funnel/etc. modules it calls
+// into) is Phase 5; this is just the slot/handoff plumbing, exercised end-to-end by
+// /api/agent/poll + /api/agent/done against real `writer_requests` rows.
+//
+// State lives on `globalThis`, same reason as lib/jobs/queues.ts: a plain module-level
+// singleton is NOT actually shared between server.ts's direct import and the separate module
+// instance Next.js's Route Handler bundle resolves the same file to.
+export type WriterState = { running: boolean; project: string | null; what: string | null; started: number | null; finished: number | null; code: number | null; log: string };
 
-const writer: WriterState = { running: false, project: null, what: null, started: null, log: "" };
+const g = globalThis as unknown as { __growthHubWriter?: WriterState };
+if (!g.__growthHubWriter) {
+  g.__growthHubWriter = { running: false, project: null, what: null, started: null, finished: null, code: null, log: "" };
+}
+const writer = g.__growthHubWriter;
 
 export function tryAcquire(project: string, what: string) {
   if (writer.running) return false;
-  writer.running = true;
-  writer.project = project;
-  writer.what = what;
-  writer.started = Date.now();
-  writer.log = "";
+  Object.assign(writer, { running: true, project, what, started: Date.now() / 1000, finished: null, code: null, log: "" });
   return true;
 }
 
-export function release() {
-  writer.running = false;
-  writer.project = null;
-  writer.what = null;
-  writer.started = null;
+export function release(code: number | null = null, log = "") {
+  Object.assign(writer, { running: false, finished: Date.now() / 1000, code, log: log.slice(-3000) });
 }
 
 export function writerState(): Readonly<WriterState> {

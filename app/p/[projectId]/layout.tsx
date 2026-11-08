@@ -28,6 +28,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
           <Link href={`/p/${projectId}/gsc`}>سرچ کنسول</Link>
           <Link href={`/p/${projectId}/catalog`}>محصولات</Link>
           <Link href={`/p/${projectId}/tasks`}>کارها</Link>
+          <Link href={`/p/${projectId}/schedule`}>زمان‌بندی</Link>
         </nav>
       </aside>
       <main style={{ flex: 1, padding: 24, fontFamily: "Vazirmatn, sans-serif" }}>{children}</main>

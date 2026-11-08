@@ -3,7 +3,7 @@
 // the GSC key, and the writer-slot) are deferred to the phases that port those modules;
 // /api/overview returns stub values for those fields in the meantime, documented below.
 import { one, q } from "./db";
-import { state } from "./jobs/queues";
+import { state, type RunningSlot } from "./jobs/queues";
 import type { ProjectRow } from "./projects";
 
 export type UptimeStats = { pct: number | null; avg_ms: number | null; last: { ts: number; status: number; ms: number } | null; checks: number };
@@ -71,9 +71,20 @@ export function projectSummary(p: ProjectRow) {
   };
 }
 
-export function jobsState() {
+// Changes once per process start — the frontend's future deploy-detection poll (ported with
+// Phase 6) compares this to notice a new version is running and reload when idle, same as
+// server.py's build() cache-buster.
+export const BUILD_ID = String(Date.now());
+
+// Ported from server.py's jobs_state(): only "current" (one slot, preferring writing >
+// current > reading) and queue/history entries the user can actually see.
+export function jobsState(visiblePids: Set<string>) {
+  const mine = (slot: RunningSlot) => (slot && visiblePids.has(slot.project) ? slot : null);
+  const current = mine(state.writing) || mine(state.current) || mine(state.reading);
   return {
-    current: state.current, writing: state.writing, reading: state.reading,
-    queued: state.queued, history: state.history,
+    build: BUILD_ID,
+    current,
+    queued: state.queued.filter((j) => visiblePids.has(j.project)),
+    history: state.history.filter((h) => visiblePids.has(h.project)).slice(0, 10),
   };
 }
