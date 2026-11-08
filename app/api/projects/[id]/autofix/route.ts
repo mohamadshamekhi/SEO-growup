@@ -6,15 +6,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireProjectAccess } from "@/lib/access";
 import { config } from "@/lib/adapters";
-import { one, run } from "@/lib/db";
+import { run } from "@/lib/db";
 import { project } from "@/lib/projects";
 import { request as autofixRequest } from "@/lib/autofix";
 import { enqueue } from "@/lib/jobs/queues";
 import { logActivity } from "@/lib/activity";
-
-function writerAvailable(): boolean {
-  return !!one("SELECT 1 FROM agent_tokens WHERE last_seen>?", Date.now() / 1000 - 120);
-}
+import { writerAvailable } from "@/lib/jobs/writer";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: pid } = await params;

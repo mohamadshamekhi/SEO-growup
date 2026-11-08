@@ -9,6 +9,8 @@
 // State lives on `globalThis`, same reason as lib/jobs/queues.ts: a plain module-level
 // singleton is NOT actually shared between server.ts's direct import and the separate module
 // instance Next.js's Route Handler bundle resolves the same file to.
+import { one } from "../db";
+
 export type WriterState = { running: boolean; project: string | null; what: string | null; started: number | null; finished: number | null; code: number | null; log: string };
 
 const g = globalThis as unknown as { __growthHubWriter?: WriterState };
@@ -29,4 +31,12 @@ export function release(code: number | null = null, log = "") {
 
 export function writerState(): Readonly<WriterState> {
   return writer;
+}
+
+/** Can a writing job start right now? Python's writer_available() also checks for a local
+ * `claude` CLI on PATH; this port has no local-spawn path (the remote agent.py-style poll
+ * loop is primary per the architecture plan), so this only checks for a recently-polling
+ * remote agent token. NOT the same thing as "is a job currently running" (writer.running). */
+export function writerAvailable(): boolean {
+  return !!one("SELECT 1 FROM agent_tokens WHERE last_seen>?", Date.now() / 1000 - 120);
 }

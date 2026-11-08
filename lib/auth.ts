@@ -151,6 +151,12 @@ export function endAllSessions(userId: number, keepToken?: string) {
 
 export type Role = "admin" | "editor" | "viewer" | null;
 
+export const ROLES = ["viewer", "editor"] as const;
+
+export function otherActiveAdmins(userId: number): boolean {
+  return one<{ n: number }>("SELECT COUNT(*) n FROM users WHERE is_admin=1 AND active=1 AND id!=?", userId)!.n > 0;
+}
+
 export function role(user: User, projectId: string): Role {
   if (user.is_admin) return "admin";
   const r = one<{ role: Role }>("SELECT role FROM members WHERE user_id=? AND project_id=?", user.id, projectId);
