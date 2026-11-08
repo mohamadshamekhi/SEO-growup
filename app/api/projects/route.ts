@@ -1,10 +1,5 @@
 // GET ports server.py's project list (via auth.visibleProjects). POST creates a project
 // (admin-only), same validation as Python's clean_project()/slugify().
-//
-// Python's POST also spawns a background thread calling onboard.detect(p) (hub/onboard.py,
-// site-type auto-detection) — hub/onboard.py isn't ported at all yet, so that step is
-// skipped here; a new project just starts without auto-detected settings instead of
-// crashing or faking a result.
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/access";
 import { role, visibleProjects } from "@/lib/auth";
@@ -12,6 +7,7 @@ import { run } from "@/lib/db";
 import { project, projects, slugify, cleanProject } from "@/lib/projects";
 import { projectSummary } from "@/lib/overview";
 import { enqueue } from "@/lib/jobs/queues";
+import { detect } from "@/lib/onboard";
 
 export const dynamic = "force-dynamic";
 
@@ -44,5 +40,6 @@ export async function POST(req: NextRequest) {
   enqueue({ project: pid, kind: "audit" });
   enqueue({ project: pid, kind: "catalog" });
   const p = project(pid)!;
+  detect(p).catch(() => {}); // a site that's down shows as an open onboarding step, not a crash here
   return NextResponse.json(projectSummary(p));
 }
