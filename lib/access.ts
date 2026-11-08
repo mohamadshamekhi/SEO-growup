@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { COOKIE, EXTRA_HOSTS, HTTPS, PROXY } from "./http-env";
 import { role, userFromToken, SESSION_SECONDS, type Role, type User } from "./auth";
+import { project as getProject } from "./projects";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const LOCAL_IPS = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
@@ -70,7 +71,12 @@ export function requireProjectAccess(req: NextRequest, pid: string, level: "view
 
 export function requireProject(user: User, pid: string, level: "view" | "edit" | "admin"): { role: Role } | { response: NextResponse } {
   const r = role(user, pid);
-  if (!r) return { response: NextResponse.json({ error: "پیدا نشد" }, { status: 404 }) };
+  // role() returns "admin" for an admin user regardless of whether `pid` names a real
+  // project (it never checks) — same as Python's access(), which defers that check to each
+  // handler for an admin ("if admin and not db.project(pid): return True # handler 404s").
+  // Checking it centrally here, once, fixes every route built on requireProjectAccess/
+  // requireProject instead of needing a project(pid) existence check duplicated in each one.
+  if (!r || (user.is_admin && !getProject(pid))) return { response: NextResponse.json({ error: "پیدا نشد" }, { status: 404 }) };
   if (level === "admin" && r !== "admin") return { response: NextResponse.json({ error: "شما اجازه این کار را ندارید" }, { status: 403 }) };
   if (level === "edit" && r === "viewer") return { response: NextResponse.json({ error: "شما اجازه این کار را ندارید" }, { status: 403 }) };
   return { role: r };
