@@ -1,6 +1,5 @@
-// Ported from public/app.js's tabSales() — read-focused for this pass (margin dropdowns,
-// price-add form, cro/alternatives approve-reject actions are left for a follow-up; the data
-// itself, which had zero frontend before, is now fully visible).
+// Ported from public/app.js's tabSales() — cro/alternatives approve-reject actions are left
+// for a follow-up (those go through lib/adapters.ts's applyFixes(), a real site write).
 import { notFound } from "next/navigation";
 import { project } from "@/lib/projects";
 import { rows, croList, tests, feedState, oosList, paidOos, restock } from "@/lib/funnel";
@@ -9,6 +8,9 @@ import { funnel as gaFunnel, getProperty, hasCartEvents, channels, tracking } fr
 import { impactSummary } from "@/lib/growth";
 import { rows as priceRows } from "@/lib/prices";
 import { faNum } from "@/lib/intl/fa";
+import { MarginSelect } from "./margin-select";
+import { PriceForm } from "./price-form";
+import { PriceRemoveButton } from "./price-remove-button";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +74,7 @@ export default async function FunnelTab({ params }: { params: Promise<{ projectI
                     <td className="num">{faNum(r.units)}</td>
                     <td className="num">{faNum(r.clicks)}</td>
                     <td className="num">{r.position ? faNum(r.position, 1) : "—"}</td>
-                    <td>{MARGIN[r.margin]}</td>
+                    <td><MarginSelect projectId={p.id} url={r.url} initial={r.margin} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -139,12 +141,13 @@ export default async function FunnelTab({ params }: { params: Promise<{ projectI
         </section>
       )}
 
-      {prices.length > 0 && (
-        <section className="panel flush" style={{ marginBottom: 14 }}>
-          <h3>مقایسه قیمت در ترب <span className="count">{faNum(prices.length)}</span></h3>
+      <section className="panel flush" style={{ marginBottom: 14 }}>
+        <h3>مقایسه قیمت در ترب {prices.length > 0 && <span className="count">{faNum(prices.length)}</span>}</h3>
+        <p className="muted small" style={{ padding: "0 16px" }}>فقط لینک صفحه محصولی که خودت می‌دهی خوانده می‌شود، هر صفحه با ۵ ثانیه فاصله و هفته‌ای یک بار. مبلغ‌ها به تومان است، قیمتی در سایت عوض نمی‌شود.</p>
+        {prices.length > 0 && (
           <div className="table-wrap plain">
             <table>
-              <thead><tr><th>محصول</th><th className="num">قیمت تو</th><th className="num">کمترین ترب</th><th className="num">بیشترین ترب</th><th>اختلاف</th><th>وضعیت</th></tr></thead>
+              <thead><tr><th>محصول</th><th className="num">قیمت تو</th><th className="num">کمترین ترب</th><th className="num">بیشترین ترب</th><th>اختلاف</th><th>وضعیت</th><th /></tr></thead>
               <tbody>
                 {prices.map((r, i) => (
                   <tr key={i}>
@@ -154,13 +157,15 @@ export default async function FunnelTab({ params }: { params: Promise<{ projectI
                     <td className="num">{r.high == null ? "—" : faNum(r.high)}</td>
                     <td>{r.gap == null ? "—" : <span className="ltr">{r.gap > 0 ? "+" : ""}{faNum(r.gap)}٪</span>}</td>
                     <td><span className={`chip ${PRICE_STATUS[r.status][1]}`}>{PRICE_STATUS[r.status][0]}</span></td>
+                    <td><PriceRemoveButton projectId={p.id} url={r.url} name={r.name} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </section>
-      )}
+        )}
+        <PriceForm projectId={p.id} productOptions={allRows.filter((r) => !prices.some((x) => x.url === r.url)).map((r) => ({ url: r.url, name: r.name }))} hasAnyPrices={prices.length > 0} />
+      </section>
 
       {imp.length > 0 && (
         <section className="panel flush" style={{ marginBottom: 14 }}>

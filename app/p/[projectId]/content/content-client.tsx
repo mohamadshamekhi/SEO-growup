@@ -28,6 +28,23 @@ export function ContentClient({ projectId, initialItems, catalogSize }: { projec
     } catch (e) { setErr(e instanceof ApiError ? e.message : "خطا"); }
   }
 
+  async function pushDraft(id: number) {
+    if (!confirm("این مقاله به‌صورت پیش‌نویس منتشرنشده به سایت فرستاده شود؟")) return;
+    try {
+      await api(`/api/content/${id}/draft`, { method: "POST" });
+      setItems(items.map((c) => (c.id === id ? { ...c, status: "drafted" } : c)));
+    } catch (e) { setErr(e instanceof ApiError ? e.message : "خطا"); }
+  }
+
+  async function doPublish(id: number) {
+    try {
+      const chk = await api<{ fails: number }>(`/api/content/${id}/check`, { method: "POST" });
+      if (!confirm(chk.fails ? `${chk.fails} مشکل جدی دارد؛ با این حال منتشر شود؟` : "این مقاله منتشر شود؟")) return;
+      await api(`/api/content/${id}/publish`, { method: "POST", body: { force: !!chk.fails } });
+      setItems(items.map((c) => (c.id === id ? { ...c, status: "published" } : c)));
+    } catch (e) { setErr(e instanceof ApiError ? e.message : "خطا"); }
+  }
+
   async function del(id: number) {
     try {
       await api(`/api/content/${id}`, { method: "DELETE" });
@@ -123,6 +140,10 @@ export function ContentClient({ projectId, initialItems, catalogSize }: { projec
                     <button className="btn sm danger" onClick={() => setStatus(c.id, "rejected")}>رد</button>
                   </>
                 )}
+                {c.kind === "article" && ["review", "approved"].includes(c.status) && !o.draft_id && (
+                  <button className="btn sm primary" onClick={() => pushDraft(c.id)}>فرستادن پیش‌نویس به سایت</button>
+                )}
+                {c.kind === "article" && c.status === "drafted" && <button className="btn sm primary" onClick={() => doPublish(c.id)}>انتشار</button>}
                 {c.status !== "writing" && <button className="btn sm danger icon-only" aria-label="حذف" onClick={() => del(c.id)}>✕</button>}
               </div>
             </div>
