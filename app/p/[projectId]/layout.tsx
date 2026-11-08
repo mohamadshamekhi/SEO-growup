@@ -3,10 +3,31 @@ import Link from "next/link";
 import { currentUser } from "@/lib/server/current-user";
 import { role } from "@/lib/auth";
 import { project } from "@/lib/projects";
+import Icon from "@/components/Icon";
+import ProjectNavItem from "@/components/ProjectNav";
 
 // Replaces server.py's access() check for everything under /api/projects/:id/* — here it
 // gates everything under /p/:projectId/* in one place instead of per-route, since the whole
 // subtree needs the same "any role, else 404" rule (not 403 — hides the project's existence).
+const NAV: [string, string, string][] = [
+  ["dash", "داشبورد", "grid"],
+  ["issues", "سلامت فنی", "alert"],
+  ["pages", "صفحات", "file"],
+  ["uptime", "آپتایم", "activity"],
+  ["gsc", "سرچ کنسول", "search"],
+  ["catalog", "محصولات", "file"],
+  ["funnel", "فروش", "dollar"],
+  ["opps", "فرصت‌ها", "bulb"],
+  ["content", "محتوا", "trend"],
+  ["kwgap", "کلمات", "search"],
+  ["tasks", "کارها", "check"],
+  ["schedule", "زمان‌بندی", "clock"],
+];
+const ADMIN_NAV: [string, string, string][] = [
+  ["members", "اعضا", "users"],
+  ["settings", "تنظیمات", "gear"],
+];
+
 export default async function ProjectLayout({ children, params }: { children: React.ReactNode; params: Promise<{ projectId: string }> }) {
   const user = await currentUser();
   if (!user) redirect("/login");
@@ -14,26 +35,34 @@ export default async function ProjectLayout({ children, params }: { children: Re
   const p = project(projectId);
   const myRole = p ? role(user, projectId) : null;
   if (!p || !myRole) notFound();
+  const isAdmin = myRole === "admin";
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      <aside style={{ width: 220, borderInlineEnd: "1px solid #333", padding: 16 }}>
-        <Link href="/">همه پروژه‌ها</Link>
-        <h2 style={{ marginTop: 16 }}>{p.name}</h2>
-        <nav style={{ display: "grid", gap: 6, marginTop: 12 }}>
-          <Link href={`/p/${projectId}/dash`}>داشبورد</Link>
-          <Link href={`/p/${projectId}/issues`}>مشکلات</Link>
-          <Link href={`/p/${projectId}/pages`}>صفحات</Link>
-          <Link href={`/p/${projectId}/uptime`}>آپتایم</Link>
-          <Link href={`/p/${projectId}/gsc`}>سرچ کنسول</Link>
-          <Link href={`/p/${projectId}/catalog`}>محصولات</Link>
-          <Link href={`/p/${projectId}/tasks`}>کارها</Link>
-          <Link href={`/p/${projectId}/schedule`}>زمان‌بندی</Link>
-          <Link href={`/p/${projectId}/kwgap`}>شکاف کلمات</Link>
-          <Link href={`/p/${projectId}/settings`}>تنظیمات</Link>
-        </nav>
+    <div className="app">
+      <aside className="side">
+        <div className="brand">
+          <span className="brand-mark"><Icon name="trend" /></span>
+          Growth Hub
+        </div>
+        <Link className="nav-item" href="/">
+          <Icon name="grid" /><span className="grow">همه پروژه‌ها</span>
+        </Link>
+        <div className="side-label"><span>{p.name}</span></div>
+        {NAV.map(([key, label, ic]) => (
+          <ProjectNavItem key={key} href={`/p/${projectId}/${key}`} icon={ic} label={label} />
+        ))}
+        {isAdmin && (
+          <>
+            <div className="side-label"><span>مدیریت</span></div>
+            {ADMIN_NAV.map(([key, label, ic]) => (
+              <ProjectNavItem key={key} href={`/p/${projectId}/${key}`} icon={ic} label={label} />
+            ))}
+          </>
+        )}
       </aside>
-      <main style={{ flex: 1, padding: 24, fontFamily: "Vazirmatn, sans-serif" }}>{children}</main>
+      <div className="content">
+        <main>{children}</main>
+      </div>
     </div>
   );
 }
