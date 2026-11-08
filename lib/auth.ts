@@ -1,11 +1,12 @@
 // Ported 1:1 from hub/auth.py. Same scrypt params (so existing password hashes in hub.db
 // stay valid — no re-hash/migration needed), same session-token-hash-only storage, same
-// brute-force lockout shape, same admin/editor/viewer role resolution. TOTP 2FA setup/
-// enable/disable endpoints are deferred (hub/extras.py's totp_* lands with Phase 5e); the
-// login() gate below is still wired so it fails loudly instead of silently skipping 2FA if
-// a user ever has totp_secret set, rather than silently bypassing it.
+// brute-force lockout shape, same admin/editor/viewer role resolution. TOTP 2FA setup/enable/
+// disable endpoints (hub/auth.py's own setup flow, not hub/extras.py's totp_* primitives,
+// which are now ported in lib/extras.ts and used by login() below) are still not wired to a
+// route.
 import crypto from "node:crypto";
 import { one, run } from "./db";
+import { totpOk } from "./extras";
 import { projects as allProjects } from "./projects";
 
 export const SESSION_SECONDS = 14 * 86400;
@@ -100,13 +101,24 @@ export function login(username: string, password: string, ip: string, code?: str
   }
   if (u.totp_secret) {
     if (!code) throw new NeedCode();
-    // extras.totpOk()/useRecovery() land with Phase 5e; no real user currently has 2FA
-    // enabled, so this throws clearly rather than silently accepting any code.
-    throw new Error("ورود دومرحله‌ای هنوز در این نسخه پیاده نشده");
+    if (!(totpOk(u.totp_secret, code) || useRecovery(u, code))) {
+      fails.set(key, [...recent, now]);
+      throw new Error("کد ورود دومرحله‌ای درست نیست");
+    }
   }
   fails.delete(key);
   run("UPDATE users SET last_login=? WHERE id=?", now, u.id);
   return newSession(u.id);
+}
+
+function useRecovery(u: User, code: string): boolean {
+  const digest = crypto.createHash("sha256").update(String(code).trim().toLowerCase()).digest("hex");
+  const left: string[] = JSON.parse(u.recovery || "[]");
+  const idx = left.indexOf(digest);
+  if (idx < 0) return false;
+  left.splice(idx, 1);
+  run("UPDATE users SET recovery=? WHERE id=?", JSON.stringify(left), u.id);
+  return true;
 }
 
 function digest(token: string): string {
