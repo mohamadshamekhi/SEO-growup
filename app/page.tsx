@@ -21,6 +21,8 @@ export default async function ProjectsPicker() {
       <div className="picker-top">
         <span className="brand-mark"><Icon name="trend" /></span>
         <span style={{ fontWeight: 700 }}>Growth Hub</span>
+        <span className="spacer" />
+        {user.is_admin && <Link className="btn sm" href="/users"><Icon name="users" />کاربران</Link>}
       </div>
       <h1>کدام پروژه را باز کنم؟</h1>
       {!projects.length && <div className="empty-inline"><p>هنوز پروژه‌ای برای تو تعریف نشده.</p></div>}

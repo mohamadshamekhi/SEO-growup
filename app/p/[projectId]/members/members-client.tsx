@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { api, ApiError } from "@/lib/client/api";
-import { faNum } from "@/lib/intl/fa";
+import { formatJalaliDateTime } from "@/lib/intl/jalali";
 
 type Member = { id: number; name: string; username: string; active: number; last_login: number | null; role: string };
 type FreeUser = { id: number; name: string; username: string };
@@ -50,7 +50,7 @@ export function MembersClient({ projectId, initialMembers, freeUsers }: { projec
               <span className="grow">
                 <strong>{m.name}</strong> <span className="mono muted">{m.username}</span>
                 {!m.active && <span className="chip danger"> غیرفعال</span>}
-                <div className="muted small">{m.last_login ? `آخرین ورود ${faNum(m.last_login)}` : "هنوز وارد نشده"}</div>
+                <div className="muted small">{m.last_login ? `آخرین ورود ${formatJalaliDateTime(m.last_login * 1000)}` : "هنوز وارد نشده"}</div>
               </span>
               <select value={m.role} onChange={(e) => changeRole(m.id, e.target.value)}>
                 <option value="viewer">فقط مشاهده</option>
