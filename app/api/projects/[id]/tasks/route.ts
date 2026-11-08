@@ -1,11 +1,13 @@
-// GET is read-only (Phase 2); POST (creating a task) is Phase 3's mutation side.
-// keywords.task_help() (context-specific help text on auto-created tasks) is Phase 5b —
-// stubbed as null here so the shape matches without crashing the UI.
+// keywords.task_help() (context-specific help text on auto-created tasks) isn't ported
+// (hub/keywords.py's Claude-review workflow) — stubbed as null so the shape matches without
+// crashing the UI.
 import { NextRequest, NextResponse } from "next/server";
 import { requireProjectAccess } from "@/lib/access";
 import { one, q, run } from "@/lib/db";
 import { role, type User } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
+import { project } from "@/lib/projects";
+import { notifyPerson } from "@/lib/publisher";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +31,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     "INSERT INTO tasks(project_id,title,ref,assignee_id,due,status,created_by,created,updated) VALUES (?,?,?,?,?,'todo',?,?,?)",
     pid, title, String(body.ref || "").slice(0, 300), who, due, gate.user.name, now, now,
   );
-  // notify_user() (Telegram) is Phase 5e; the task itself is created either way.
+  if (who && who !== gate.user.id) {
+    const target = one<{ telegram_chat: string }>("SELECT telegram_chat FROM users WHERE id=?", who);
+    const proj = project(pid);
+    if (target?.telegram_chat && proj) notifyPerson(proj, target.telegram_chat, `کار جدید در ${proj.name}: ${title}`).catch(() => {});
+  }
   logActivity(pid, gate.user.name, "POST", req.nextUrl.pathname);
   return NextResponse.json({ id: Number(info.lastInsertRowid) });
 }
