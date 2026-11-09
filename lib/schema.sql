@@ -224,4 +224,15 @@ CREATE TABLE IF NOT EXISTS ideas (
   UNIQUE(project_id, topic_key)
 );
 
+-- کمپین: فصلی/تخفیفی (type=seasonal)، محتوایی (type=content)، تبلیغاتی پولی (type=paid).
+-- بودجه/هزینه/متریک‌ها فقط دستی ثبت می‌شوند؛ هیچ API تبلیغاتی وصل نیست.
+CREATE TABLE IF NOT EXISTS campaigns (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, project_id TEXT, name TEXT, type TEXT, status TEXT DEFAULT 'planned',
+  goal TEXT DEFAULT '', channel TEXT DEFAULT '', start_date TEXT DEFAULT '', end_date TEXT DEFAULT '',
+  budget REAL, spend REAL, discount_percent REAL, discount_note TEXT DEFAULT '',
+  content_ids TEXT DEFAULT '[]', idea_ids TEXT DEFAULT '[]', product_urls TEXT DEFAULT '[]',
+  metrics TEXT DEFAULT '{}', note TEXT DEFAULT '', created_by TEXT, created REAL, updated REAL
+);
+CREATE INDEX IF NOT EXISTS campaigns_p ON campaigns(project_id, id);
+
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);

@@ -18,6 +18,7 @@ const NAV: [string, string, string][] = [
   ["catalog", "محصولات", "file"],
   ["funnel", "فروش", "dollar"],
   ["opps", "فرصت‌ها", "bulb"],
+  ["campaigns", "کمپین‌ها", "send"],
   ["content", "محتوا", "trend"],
   ["kwgap", "کلمات", "search"],
   ["tasks", "کارها", "check"],
