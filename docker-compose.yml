@@ -1,16 +1,21 @@
-# Phase 0: a standalone stack on its own port/volume (hub-next-data), deliberately NOT the
-# live `hub-data` volume growth-hub/docker-compose.yml uses — real cutover (plan section 7)
-# reuses that same volume and flips Caddy's reverse_proxy target; it does not happen by
-# editing this file today. Run this alongside the Python stack for development/demo only.
+# Deploys onto the shared `khodroban` Caddy/network on srv4865646489, next to the
+# khodroban stack, not inside it. No host port is published — the existing Caddy
+# container reaches this service by its compose name (hub-next) on that network;
+# routing is added to khodroban's own Caddyfile (a separate service — not edited here,
+# see the runbook message for the exact block to paste there).
+name: growth-hub-next
 services:
   hub-next:
     build: .
     restart: unless-stopped
     environment:
-      HUB_HOSTS: ${HUB_DOMAIN:-localhost}
+      HUB_HOSTS: ${HUB_DOMAIN}
     volumes:
       - hub-next-data:/data
-    ports: ["4501:4500"]
+    networks: [khodroban]
     mem_limit: 1g
+networks:
+  khodroban:
+    external: true
 volumes:
   hub-next-data:
