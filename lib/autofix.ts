@@ -98,7 +98,7 @@ export function candidates(title: string, text: string, prods: { name: string; u
     if (!kinds.has(key)) kinds.set(key, []);
     kinds.get(key)!.push([score, p]);
   }
-  let out: [number, { name: string; url: string }][] = [];
+  const out: [number, { name: string; url: string }][] = [];
   for (const rows of kinds.values()) {
     rows.sort((a, b) => b[0] - a[0]);
     out.push(...rows.slice(0, rows[0][0] ? 5 : 1));

@@ -59,7 +59,7 @@ export function save(project: ProjectRow, body: Record<string, { hours?: number;
     const hours = Number(val.hours ?? cur[k].hours);
     if (hours < JOBS[k][3] - 1e-9) throw new Error(`${JOBS[k][0]}: فاصله خیلی کوتاه است`);
     if (hours > 24 * 90) throw new Error(`${JOBS[k][0]}: فاصله خیلی بلند است`);
-    let at: number | null = val.at === undefined ? cur[k].at : (val.at === null || val.at === "" ? null : Number(val.at));
+    const at: number | null = val.at === undefined ? cur[k].at : (val.at === null || val.at === "" ? null : Number(val.at));
     if (at !== null && !(at >= 0 && at <= 23)) throw new Error("ساعت باید بین ۰ و ۲۳ باشد");
     cur[k] = { on: val.on ?? cur[k].on, hours, at };
   }

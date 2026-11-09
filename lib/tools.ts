@@ -2,6 +2,7 @@
 // elapsed ms) rather than going through crawl.fetchUrl(). publicUrl()/safeFetch() do use
 // crawl.fetchUrl(), since check_sources() (hub/content.py) needs real redirect-hop-by-hop
 // following with headers, which crawl.ts already has.
+import { execSync } from "node:child_process";
 import dns from "node:dns/promises";
 import fs from "node:fs";
 import net from "node:net";
@@ -186,7 +187,6 @@ function findChrome(): string {
   const macChrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
   if (process.env.HUB_CHROME) return process.env.HUB_CHROME;
   if (fs.existsSync(macChrome)) return macChrome;
-  const { execSync } = require("node:child_process") as typeof import("node:child_process");
   for (const name of ["chromium", "chromium-browser", "google-chrome"]) {
     try {
       const p = execSync(`which ${name}`, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();

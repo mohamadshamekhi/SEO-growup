@@ -215,6 +215,7 @@ const WRITABLE_FIXES = ["seo_title", "meta_description", "description"];
  * top) because growth.ts, in turn, lazily requires this module for the same function; this
  * mirrors Python's own `from . import growth` placed inside next_item(), not at module top. */
 function igResults(pid: string, limit = 12): ReturnType<typeof import("./growth").igResults> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy require to break the content.ts<->growth.ts import cycle
   const { igResults: fn } = require("./growth") as typeof import("./growth");
   return fn(pid, limit);
 }

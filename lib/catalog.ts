@@ -92,7 +92,7 @@ export async function runCatalog(project: ProjectRow, progress: (done: number, t
   const rb = await fetchUrl(base + "/robots.txt"); await sleep(DELAY_MS);
   const fromRobots = rb.status === 200 ? [...rb.body.matchAll(/^\s*sitemap:\s*(\S+)/gim)].map((m) => m[1]) : [];
   const sm = project.sitemap || fromRobots[0] || base + "/sitemap.xml";
-  let urls = (await sitemapUrls(sm, (m) => progress(0, 0, m))) || [];
+  const urls = (await sitemapUrls(sm, (m) => progress(0, 0, m))) || [];
   // Pages the audit found linked on the site but missing from the sitemap belong to the catalog too.
   urls.push(...q<{ url: string }>("SELECT url FROM issues WHERE project_id=? AND code='not_in_sitemap' AND status='open'", project.id).map((r) => r.url));
   urls.push(...q<{ slug: string }>("SELECT slug FROM site_articles WHERE project_id=? AND published=1", project.id).map((r) => `https://${project.domain}/blog/${encodeURIComponent(r.slug)}`));

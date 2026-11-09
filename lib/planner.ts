@@ -318,6 +318,7 @@ export async function tick(project: ProjectRow, now?: number) {
   if (plan.ig_weekly && local.weekday === plan.ig_day && local.hour >= plan.hour && getSetting(`content_ig:${pid}`, "") !== today) {
     setSetting(`content_ig:${pid}`, today);
     if (!listing(pid, "ig_post").some((c) => c.status === "queued" || c.status === "writing")) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy require to break the planner.ts<->content.ts import cycle
       const { planWeek } = require("./content") as typeof import("./content");
       out.instagram = planWeek(project).length;
     }

@@ -30,7 +30,7 @@ export async function pullSales(project: ProjectRow): Promise<number | null> {
   const to = new Date(); to.setHours(0, 0, 0, 0);
   const from = new Date(to); from.setDate(from.getDate() - 90);
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  let sold: Record<string, { name: string; units: number }> = {};
+  const sold: Record<string, { name: string; units: number }> = {};
   if (kind === "steve") {
     const d = await adapters.client(pid).req("GET", `/backoffice/dashboard/ai-summary?from=${iso(from)}&to=${iso(to)}&page_number=1&page_size=1`);
     const top = (d.top_products as { slug?: string; name?: string; units_sold?: number }[]) || [];
@@ -410,6 +410,7 @@ export function igResults(pid: string, limit = 12) {
   // imported lazily to avoid a require-cycle at module-eval time (content.ts doesn't import
   // growth.ts, so this is one-directional, but keeping it dynamic matches Python's own
   // `from . import content` placed inside the function body, not at module top).
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy require to break the growth.ts<->content.ts import cycle
   const { listing } = require("./content") as typeof import("./content");
   const posted = listing(pid, "ig_post").filter((c) => (c.output.result as { posted?: boolean } | undefined)?.posted);
   const score = (c: (typeof posted)[number]) => {

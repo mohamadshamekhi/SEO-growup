@@ -101,7 +101,7 @@ export function login(username: string, password: string, ip: string, code?: str
   }
   if (u.totp_secret) {
     if (!code) throw new NeedCode();
-    if (!(totpOk(u.totp_secret, code) || useRecovery(u, code))) {
+    if (!(totpOk(u.totp_secret, code) || consumeRecoveryCode(u, code))) {
       fails.set(key, [...recent, now]);
       throw new Error("کد ورود دومرحله‌ای درست نیست");
     }
@@ -111,7 +111,7 @@ export function login(username: string, password: string, ip: string, code?: str
   return newSession(u.id);
 }
 
-function useRecovery(u: User, code: string): boolean {
+function consumeRecoveryCode(u: User, code: string): boolean {
   const digest = crypto.createHash("sha256").update(String(code).trim().toLowerCase()).digest("hex");
   const left: string[] = JSON.parse(u.recovery || "[]");
   const idx = left.indexOf(digest);

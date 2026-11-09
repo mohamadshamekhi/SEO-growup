@@ -3,6 +3,7 @@
 // product feeds. Sales write paths (cro_set/oos_propose insert into `fixes`, applied later
 // through adapters.applyFixes — already live-write-tested-cautious per lib/adapters.ts) are
 // ported but, like the rest of this phase, never invoked against the real site here.
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import * as adapters from "./adapters";
 import { catalogRows, type CatalogItem } from "./catalog";
 import { getSetting, localDateStr, one, q, run, setSetting } from "./db";
@@ -410,7 +411,6 @@ export function tests(pid: string, limit = 40) {
 export function feedToken(pid: string, create = false): string {
   let t = getSetting<string>(`feed_token:${pid}`, "");
   if (!t && create) {
-    const { randomBytes } = require("crypto");
     t = randomBytes(18).toString("base64url");
     setSetting(`feed_token:${pid}`, t);
   }
@@ -418,7 +418,6 @@ export function feedToken(pid: string, create = false): string {
 }
 
 export function projectForToken(token: string, allProjects: ProjectRow[]): ProjectRow | null {
-  const { timingSafeEqual } = require("crypto");
   for (const p of allProjects) {
     const t = feedToken(p.id);
     if (t && t.length === token.length && timingSafeEqual(Buffer.from(t), Buffer.from(token))) return p;
@@ -446,7 +445,6 @@ export function feedGoogle(project: ProjectRow): string {
     `<title>${e(project.name)}</title><link>https://${e(project.domain)}</link><description>${e(project.name)}</description>`,
   ];
   for (const r of feedItems(project.id)) {
-    const { createHash } = require("crypto");
     const id = createHash("sha1").update(r.url).digest("hex").slice(0, 20);
     out.push(
       `<item><g:id>${e(id)}</g:id><title>${e(r.name)}</title><link>${e(r.url)}</link><description>${e(plain(r.description).slice(0, 4000))}</description>` +
