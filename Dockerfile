@@ -24,16 +24,21 @@ COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/tsconfig.json ./tsconfig.json
 RUN mkdir /data && chown node /data
 # renderImage()/analyze() (lib/tools.ts) need a real Chromium — the server has no system
-# Chrome like the dev Mac does, so install Playwright's own + its OS deps as root.
-# deb.debian.org times out from the Iran server (same reason as khodroban/crwoler's
-# Dockerfile) — swap to an Iran-reachable apt mirror first.
+# Chrome like the dev Mac does. Playwright's own --with-deps apt step works (once pointed
+# at an Iran-reachable mirror below), but its browser binary itself downloads from
+# cdn.playwright.dev, which 403s "not available in your location" from this server — same
+# block hit on the dev Mac. So skip Playwright's download: apt-install Debian's own
+# `chromium` package instead and point HUB_CHROME at it (lib/tools.ts checks that env var
+# first, same as the Mac workaround using system Chrome).
 ARG APT_MIRROR=http://mirror.arvancloud.ir/debian
 RUN if [ -n "$APT_MIRROR" ]; then \
       sed -i "s|http://deb.debian.org/debian|$APT_MIRROR|g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
       sed -i "s|http://deb.debian.org/debian|$APT_MIRROR|g" /etc/apt/sources.list; \
     fi \
     && apt-get update -o Acquire::Retries=5 -o Acquire::http::Timeout=20 \
-    && npx playwright install --with-deps chromium
+    && apt-get install -y --no-install-recommends chromium ca-certificates fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+ENV HUB_CHROME=/usr/bin/chromium
 USER node
 ENV HUB_DATA=/data HUB_BIND=0.0.0.0 HUB_PORT=4500 NODE_ENV=production
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD node -e "fetch('http://localhost:4500/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
