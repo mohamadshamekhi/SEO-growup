@@ -1,21 +1,16 @@
-# Deploys onto the shared `khodroban` Caddy/network on srv4865646489, next to the
-# khodroban stack, not inside it. No host port is published — the existing Caddy
-# container reaches this service by its compose name (hub-next) on that network;
-# routing is added to khodroban's own Caddyfile (a separate service — not edited here,
-# see the runbook message for the exact block to paste there).
+# Deploys next to the khodroban stack on srv4865646489. No domain yet — exposed
+# directly on a host port; swap to the khodroban Caddy network + a Caddyfile block
+# once a domain is ready (see git history for that version).
 name: growth-hub-next
 services:
   hub-next:
     build: .
     restart: unless-stopped
     environment:
-      HUB_HOSTS: ${HUB_DOMAIN}
+      HUB_HOSTS: ${HUB_DOMAIN:-localhost}
     volumes:
       - hub-next-data:/data
-    networks: [khodroban]
+    ports: ["${HUB_HOST_PORT:-4500}:4500"]
     mem_limit: 1g
-networks:
-  khodroban:
-    external: true
 volumes:
   hub-next-data:
