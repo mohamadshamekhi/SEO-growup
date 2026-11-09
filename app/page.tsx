@@ -5,6 +5,7 @@ import { role, visibleProjects } from "@/lib/auth";
 import { uptimeStats } from "@/lib/overview";
 import { faNum } from "@/lib/intl/fa";
 import Icon from "@/components/Icon";
+import { AddProjectButton } from "@/components/AddProjectButton";
 
 export const dynamic = "force-dynamic";
 
@@ -23,9 +24,15 @@ export default async function ProjectsPicker() {
         <span style={{ fontWeight: 700 }}>Growth Hub</span>
         <span className="spacer" />
         {user.is_admin && <Link className="btn sm" href="/users"><Icon name="users" />کاربران</Link>}
+        {user.is_admin && <AddProjectButton />}
       </div>
       <h1>کدام پروژه را باز کنم؟</h1>
-      {!projects.length && <div className="empty-inline"><p>هنوز پروژه‌ای برای تو تعریف نشده.</p></div>}
+      {!projects.length && (
+        <div className="empty-inline">
+          <p>هنوز پروژه‌ای برای تو تعریف نشده.</p>
+          {user.is_admin && <AddProjectButton />}
+        </div>
+      )}
       <div className="pick-grid">
         {projects.map((p) => {
           const up = uptimeStats(p.id);

@@ -11,6 +11,7 @@ import { TelegramClient } from "./telegram-client";
 import { GuideClient } from "./guide-client";
 import { PolicyClient } from "./policy-client";
 import { DeleteProjectButton } from "./delete-project-button";
+import { ProjectForm } from "@/components/ProjectForm";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,10 @@ export default async function SettingsTab({ params }: { params: Promise<{ projec
   return (
     <div>
       <div className="page-head"><div className="head-title"><h1>تنظیمات {p.name}</h1></div></div>
+      <section className="panel narrow">
+        <h3>پروژه</h3>
+        <ProjectForm initial={{ id: p.id, name: p.name, domain: p.domain, color: p.color, logo_url: p.logo_url, sitemap: p.sitemap, max_pages: p.max_pages, gsc_property: p.gsc_property, keywords: p.keywords, competitors: p.competitors }} />
+      </section>
       <section className="panel narrow">
         <h3>اتصال به API سایت</h3>
         <AdapterClient projectId={projectId} initialAdapter={publicConfig(projectId)} />
