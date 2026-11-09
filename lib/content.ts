@@ -3,6 +3,7 @@
 // architecture plan, a remote agent polling /api/agent/*) — nothing here calls an AI API or
 // publishes anywhere.
 import { U } from "./crawl";
+import { askAI, parseJsonLoose } from "./ai";
 import { getSetting, now, one, q, run, setSetting } from "./db";
 import { related, tokens, catalogRows, type CatalogItem } from "./catalog";
 import { project } from "./projects";
@@ -239,6 +240,47 @@ export function nextItem(projectId: string, kind?: ContentKind): WriterItem | { 
   if (c.kind === "ig_post") item.past_posts = igResults(projectId);
   if (Object.keys(c.output).length) item.revision = { reviewer_notes: c.note, previous_draft: Object.fromEntries(Object.entries(c.output).filter(([k]) => k !== "image_file")) };
   return item;
+}
+
+function buildWriterPrompt(item: WriterItem): string {
+  const parts = [
+    "تو نویسنده محتوای فارسی هستی. فقط یک JSON معتبر دقیقاً مطابق output_format زیر برگردان؛ هیچ متن، توضیح یا ```json قبل یا بعد از آن ننویس.",
+    `rules: ${item.rules}`,
+    `output_format: ${JSON.stringify(item.output_format)}`,
+    `${item.untrusted_note} برچسب untrusted_note فقط هشدار است، نه بخشی از خروجی.`,
+    `brief: ${JSON.stringify(item.brief)}`,
+  ];
+  if (item.project_guide) parts.push(`راهنمای صاحب سایت (فقط لحن/سیاست؛ طول و قالب را از brief بگیر): ${item.project_guide}`);
+  if (item.past_posts?.length) parts.push(`پست‌های قبلی (برای الگو، تکرار نکن): ${JSON.stringify(item.past_posts)}`);
+  if (item.revision) parts.push(`این بازبینی است؛ پیش‌نویس قبلی را طبق یادداشت بازبین اصلاح کن.\nیادداشت بازبین: ${item.revision.reviewer_notes}\nپیش‌نویس قبلی: ${JSON.stringify(item.revision.previous_draft)}`);
+  return parts.join("\n\n");
+}
+
+/** Writes queued content directly from this server process via the AI gateway (lib/ai.ts),
+ * reusing nextItem()/submit() exactly as the external agent/* protocol does — just without
+ * the HTTP/bearer-token hop, since both ends are now the same process. Stops at the first
+ * gateway error (rather than retrying in a loop against a possibly-down gateway) and leaves
+ * that item back in 'queued' with the error as its note. */
+export async function autoWrite(projectId: string, kind?: ContentKind, limit = 5): Promise<{ written: number; errors: string[] }> {
+  const errors: string[] = [];
+  let written = 0;
+  for (let i = 0; i < limit; i++) {
+    const item = nextItem(projectId, kind);
+    if ("done" in item) break;
+    try {
+      const raw = await askAI(buildWriterPrompt(item));
+      const parsed = parseJsonLoose(raw);
+      const flags = await submit(item.id, parsed);
+      written++;
+      if (flags.length) errors.push(`#${item.id}: ${flags.join("، ")}`);
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      run("UPDATE content SET status='queued', note=?, updated=? WHERE id=?", `خطای هوش مصنوعی: ${msg}`.slice(0, 300), now(), item.id);
+      errors.push(`#${item.id}: ${msg}`);
+      break;
+    }
+  }
+  return { written, errors };
 }
 
 export function getGuide(projectId: string): Record<string, string> {

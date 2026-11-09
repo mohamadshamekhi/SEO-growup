@@ -30,6 +30,7 @@ import { runCatalog } from "../catalog";
 import { undoBatch, watch as policyWatch } from "../policy";
 import { dropFailed, track as trackKeywords } from "../keywords";
 import { check as checkPrices } from "../prices";
+import { autoWrite } from "../content";
 
 export type Job = { project: string; kind: string; auto?: boolean; ids?: number[]; user?: string; [k: string]: unknown };
 
@@ -63,7 +64,7 @@ const HISTORY_MAX = 30;
 const NOT_IMPLEMENTED = new Set(["watch", "report", "index", "articles", "recheck"]);
 
 function laneFor(kind: string): Lane {
-  if (kind === "apply" || kind === "undo") return "writeJobs";
+  if (kind === "apply" || kind === "undo" || kind === "write_content") return "writeJobs";
   if (kind === "kwgap") return "readJobs";
   return "jobs";
 }
@@ -163,6 +164,14 @@ async function runJob(job: Job, rid: number | bigint, progress: (done: number, t
     try {
       const r = await checkPrices(p, progress);
       return { status: "ok", summary: r };
+    } catch (e) {
+      return { status: "error", error: String((e as Error).message || e).slice(0, 500) };
+    }
+  }
+  if (job.kind === "write_content") {
+    try {
+      const r = await autoWrite(job.project, undefined, Number(job.limit) || 5);
+      return { status: r.errors.length && !r.written ? "error" : "ok", summary: r, error: r.errors.join("؛ ").slice(0, 500) || undefined };
     } catch (e) {
       return { status: "error", error: String((e as Error).message || e).slice(0, 500) };
     }

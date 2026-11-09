@@ -86,8 +86,8 @@ export function ContentClient({ projectId, initialItems, catalogSize }: { projec
       <div className="toolbar">
         <button className={`btn sm${view === "article" ? " primary" : ""}`} onClick={() => setView("article")}>مقاله‌ها ({items.filter((c) => c.kind === "article").length})</button>
         <button className={`btn sm${view === "ig_post" ? " primary" : ""}`} onClick={() => setView("ig_post")}>اینستاگرام ({items.filter((c) => c.kind === "ig_post").length})</button>
-        <button className="btn sm" disabled={!queued || busy} onClick={writeNow}>نوشتن {Math.min(queued, 5)} مورد با Claude</button>
-        <span className="muted small">نوشتن از سهمیه Claude Code مصرف می‌کند. مقاله نوشته‌شده طبق تنظیمات زمان‌بندی پیش‌نویس می‌شود؛ چیزی منتشر نمی‌شود.</span>
+        <button className="btn sm" disabled={!queued || busy} onClick={writeNow}>نوشتن {Math.min(queued, 5)} مورد با هوش مصنوعی</button>
+        <span className="muted small">نوشتن در پس‌زمینه با gateway هوش مصنوعی انجام می‌شود؛ صفحه را رفرش کن تا نتیجه را ببینی. چیزی منتشر نمی‌شود.</span>
       </div>
 
       {view === "article" ? (
