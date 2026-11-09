@@ -1,0 +1,62 @@
+# CI روی هر PR؛ CI + deploy روی push به main یا اجرای دستی.
+# secrets (هم‌نام با بقیه‌ی ریپوهای khodroban روی همین سرور): SSH_HOST, SSH_USER, SSH_PRIVATE_KEY, SSH_PORT (اختیاری، پیش‌فرض 22)
+name: ci-cd
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # همان نسخه‌ی Dockerfile (node:22، ICU کامل)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+      - run: npx eslint .
+      - run: npx tsc --noEmit
+
+      - uses: docker/setup-buildx-action@v3
+
+      # فقط build برای اطمینان از سالم بودن ایمیج؛ push نمی‌شود (ایمیج روی سرور ساخته می‌شود)
+      - name: Docker build (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: growth-hub-next:ci
+          cache-from: type=gha,scope=hub-next
+          cache-to: type=gha,mode=max,scope=hub-next
+
+  deploy:
+    needs: ci
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    concurrency:
+      group: deploy-hub-next
+      cancel-in-progress: false
+    steps:
+      # git fetch/reset، build، up و انتظار برای healthy همه در deploy.sh (روی سرور) است
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          command_timeout: 25m
+          script: cd ~/growth-hub-next && ./deploy.sh
