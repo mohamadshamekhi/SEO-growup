@@ -24,6 +24,7 @@ export default async function ProjectsPicker() {
         <span style={{ fontWeight: 700 }}>Growth Hub</span>
         <span className="spacer" />
         {user.is_admin && <Link className="btn sm" href="/users"><Icon name="users" />کاربران</Link>}
+        {user.is_admin && <Link className="btn sm" href="/settings"><Icon name="gear" />تنظیمات کلی</Link>}
         {user.is_admin && <AddProjectButton />}
       </div>
       <h1>کدام پروژه را باز کنم؟</h1>

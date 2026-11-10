@@ -31,7 +31,7 @@ export function platform(pid: string): string {
   return getSetting(`platform:${pid}`, "");
 }
 
-type Step = { key: string; label: string; done: boolean; hint: string; tab: string };
+type Step = { key: string; label: string; done: boolean; hint: string; tab: string; href?: string };
 
 export function checklist(project: ProjectRow) {
   const pid = project.id;
@@ -50,8 +50,8 @@ export function checklist(project: ProjectRow) {
   const steps: Step[] = [
     { key: "audit", label: "ممیزی فنی سایت", done: last("audit"), hint: "خودکار شروع می‌شود.", tab: "issues" },
     { key: "catalog", label: "شناختن محصولات و صفحه‌ها", done: !!one("SELECT 1 FROM catalog WHERE project_id=? LIMIT 1", pid), hint: "خودکار شروع می‌شود.", tab: "products" },
-    { key: "gsc", label: "اتصال Search Console", done: gscData, hint: email ? `در Search Console این ایمیل را با دسترسی Full اضافه کن: ${email}` : "اول فایل حساب سرویس گوگل را در تنظیمات کلی پنل بگذار.", tab: "settings" },
-    { key: "ga", label: "اتصال Google Analytics", done: !!getSetting<{ at?: number }>(`ga:${pid}`, {}).at, hint: email ? `در GA نقش Viewer به ${email} بده و شناسه عددی property را در تب کلمات وارد کن.` : "اول فایل حساب سرویس گوگل را بگذار.", tab: "kwgap" },
+    { key: "gsc", label: "اتصال Search Console", done: gscData, hint: email ? `در Search Console این ایمیل را با دسترسی Full اضافه کن: ${email}` : "اول فایل حساب سرویس گوگل را در تنظیمات کلی پنل بگذار.", tab: "settings", href: email ? undefined : "/settings" },
+    { key: "ga", label: "اتصال Google Analytics", done: !!getSetting<{ at?: number }>(`ga:${pid}`, {}).at, hint: email ? `در GA نقش Viewer به ${email} بده و شناسه عددی property را در تب کلمات وارد کن.` : "اول فایل حساب سرویس گوگل را بگذار.", tab: "kwgap", href: email ? undefined : "/settings" },
     { key: "adapter", label: "اتصال برای ثبت تغییر روی سایت", done: !!kind, hint: adapterHint, tab: "settings" },
     { key: "competitors", label: "پیدا کردن رقبا", done: kwgapDomains(project).length > 0, hint: "مدیریت کلمات خودش رقبا را پیدا می‌کند.", tab: "kwgap" },
     { key: "auto", label: "کار خودکار روشن باشد", done: !!scheduleGet(project).kwgap.on, hint: "در تب زمان‌بندی «مدیریت کلمات» را روشن کن.", tab: "schedule" },

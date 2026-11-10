@@ -79,7 +79,7 @@ export default async function DashboardTab({ params }: { params: Promise<{ proje
               <li key={st.key} className={st.done ? "is-done" : ""}>
                 <span className={`dot${st.done ? " ok" : ""}`} aria-hidden="true" />
                 <span className="grow">
-                  <Link href={`/p/${projectId}/${st.tab}`}>{st.label}</Link>
+                  <Link href={st.href || `/p/${projectId}/${st.tab}`}>{st.label}</Link>
                   {!st.done && <div className="muted small">{st.hint}</div>}
                 </span>
               </li>
