@@ -103,6 +103,23 @@ function daysAgo(from: Date, n: number): string {
   return isoDate(d);
 }
 
+export type ConnTest = { ok: boolean; property: string; available?: string[]; error?: string };
+
+/** Synchronous connectivity check for a "test connection" button — just lists the service
+ * account's visible properties and checks the saved one is among them, no data pull. */
+export async function testConnection(p: ProjectRow): Promise<ConnTest> {
+  let available: string[];
+  try {
+    available = await sites();
+  } catch (e) {
+    return { ok: false, property: p.gsc_property || "", error: (e as Error).message.slice(0, 300) };
+  }
+  const prop = p.gsc_property || guessProperty(p.domain, available);
+  if (!prop) return { ok: false, property: "", available, error: "هیچ property ای برای این دامنه در لیست Service Account پیدا نشد." };
+  if (!available.includes(prop)) return { ok: false, property: prop, available, error: `«${prop}» در لیست property های Service Account نیست.` };
+  return { ok: true, property: prop };
+}
+
 export type PullResult = { days: number; query?: number; page?: number; clicks: number; impressions: number; property: string; snap: string };
 
 export async function pull(p: ProjectRow): Promise<PullResult> {

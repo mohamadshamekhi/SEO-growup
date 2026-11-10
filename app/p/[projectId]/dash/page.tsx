@@ -13,6 +13,7 @@ import { faNum } from "@/lib/intl/fa";
 import { formatJalali } from "@/lib/intl/jalali";
 import Icon from "@/components/Icon";
 import Link from "next/link";
+import { DashActions } from "./dash-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,8 @@ export default async function DashboardTab({ params }: { params: Promise<{ proje
           <a className="mono muted" href={`https://${p.domain}`} target="_blank" rel="noopener noreferrer">{p.domain}</a>
         </div>
       </div>
+
+      <DashActions projectId={projectId} isAdmin={myRole === "admin"} />
 
       {setup && setup.left > 0 && (
         <section className="panel flush setup-box" style={{ marginBottom: 14 }}>
