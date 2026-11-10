@@ -1,11 +1,11 @@
 // Ported from public/app.js's tabDash(), using real server-side data (no client fetch) —
 // this is a Next.js server component, so every piece tabDash() fetched over the API is just
 // a direct function call here instead.
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { project } from "@/lib/projects";
 import { projectSummary, uptimeStats, priorities } from "@/lib/overview";
 import { checklist } from "@/lib/onboard";
-import { role, type User } from "@/lib/auth";
+import { role } from "@/lib/auth";
 import { currentUser } from "@/lib/server/current-user";
 import { q } from "@/lib/db";
 import { CHECKS } from "@/lib/checks";
@@ -36,7 +36,8 @@ export default async function DashboardTab({ params }: { params: Promise<{ proje
   const { projectId } = await params;
   const p = project(projectId);
   if (!p) notFound();
-  const user = (await currentUser())!;
+  const user = await currentUser();
+  if (!user) redirect("/login");
   const myRole = role(user, projectId);
   const s = projectSummary(p);
   const up = { day: uptimeStats(projectId, 24), week: uptimeStats(projectId, 168) };

@@ -19,7 +19,8 @@ export default async function OppsTab({ params }: { params: Promise<{ projectId:
   const { projectId } = await params;
   const p = project(projectId);
   if (!p) notFound();
-  const user = (await currentUser())!;
+  const user = await currentUser();
+  if (!user) redirect("/login");
   if (role(user, projectId) !== "admin") redirect(`/p/${projectId}/dash`);
 
   const d = oppsState(p);

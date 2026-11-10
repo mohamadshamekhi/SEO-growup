@@ -12,7 +12,8 @@ export default async function MembersTab({ params }: { params: Promise<{ project
   const { projectId } = await params;
   const p = project(projectId);
   if (!p) notFound();
-  const user = (await currentUser())!;
+  const user = await currentUser();
+  if (!user) redirect("/login");
   if (role(user, projectId) !== "admin") redirect(`/p/${projectId}/dash`);
 
   const members = q<{ id: number; name: string; username: string; active: number; last_login: number | null; role: string }>(
