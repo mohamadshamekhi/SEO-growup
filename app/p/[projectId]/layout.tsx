@@ -12,6 +12,7 @@ import ProjectNavItem from "@/components/ProjectNav";
 const NAV: [string, string, string][] = [
   ["dash", "داشبورد", "grid"],
   ["issues", "سلامت فنی", "alert"],
+  ["fixes", "اصلاحات متنی", "check"],
   ["pages", "صفحات", "file"],
   ["uptime", "آپتایم", "activity"],
   ["gsc", "سرچ کنسول", "search"],

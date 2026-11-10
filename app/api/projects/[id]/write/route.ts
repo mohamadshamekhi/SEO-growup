@@ -1,8 +1,10 @@
 // Ported from server.py's POST .../write. Python has two paths: spawn `claude` locally if
 // the CLI is on the server's PATH, or queue a writer_requests row for a remote agent.py poll
-// loop. what==="content" now runs in-process via the AI gateway (lib/content.ts's
-// autoWrite(), dispatched through the writeJobs lane) — no external agent needed. what is
-// "fixes"/"ideas" still queue a writer_requests row for the remote-agent protocol, unchanged.
+// loop. what==="content"/"fixes" now run in-process via the AI gateway (lib/content.ts's
+// autoWrite()/autoWriteFixes(), dispatched through the writeJobs lane) — no external agent
+// needed. autoWriteFixes() only fills `proposed`; applying a fix to the live site still
+// needs a human approve + explicit apply confirm (unchanged). what==="ideas" still queues a
+// writer_requests row for the remote-agent protocol.
 import { NextRequest, NextResponse } from "next/server";
 import { requireProjectAccess } from "@/lib/access";
 import { run } from "@/lib/db";
@@ -18,6 +20,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const limit = Math.max(1, Math.min(20, Number(b.limit) || 5));
   if (what === "content") {
     enqueue({ project: pid, kind: "write_content", limit });
+  } else if (what === "fixes") {
+    enqueue({ project: pid, kind: "write_fixes", limit });
   } else {
     run("INSERT INTO writer_requests(project_id,what,limit_n,status,ts) VALUES (?,?,?,'queued',?)", pid, what, limit, Date.now() / 1000);
   }
