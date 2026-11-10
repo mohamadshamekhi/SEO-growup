@@ -58,6 +58,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
             {ADMIN_NAV.map(([key, label, ic]) => (
               <ProjectNavItem key={key} href={`/p/${projectId}/${key}`} icon={ic} label={label} />
             ))}
+            <ProjectNavItem href="/settings" icon="gear" label="تنظیمات کلی پنل" />
           </>
         )}
       </aside>
