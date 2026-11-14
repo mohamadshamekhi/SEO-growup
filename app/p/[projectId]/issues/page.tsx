@@ -26,7 +26,7 @@ export default async function IssuesTab({ params, searchParams }: { params: Prom
     <div>
       <div className="page-head"><div className="head-title"><h1>سلامت فنی</h1></div></div>
       <p className="page-note">{faNum(withLabels.length)} مورد با وضعیت «{status === "open" ? "باز" : status}»</p>
-      <IssuesClient initialRows={withLabels} />
+      <IssuesClient projectId={projectId} initialRows={withLabels} />
     </div>
   );
 }
