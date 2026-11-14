@@ -11,6 +11,7 @@ import ProjectNavItem from "@/components/ProjectNav";
 // subtree needs the same "any role, else 404" rule (not 403 — hides the project's existence).
 const NAV: [string, string, string][] = [
   ["dash", "داشبورد", "grid"],
+  ["activity", "فعالیت و کارها", "play"],
   ["issues", "سلامت فنی", "alert"],
   ["fixes", "اصلاحات متنی", "check"],
   ["pages", "صفحات", "file"],
