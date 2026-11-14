@@ -3,6 +3,7 @@
 import { many, one, q, run } from "./db";
 import { project, type ProjectRow } from "./projects";
 import { keyInfo, token, GSC_SCOPE } from "./google-auth";
+import { googleDispatcher } from "./google-proxy";
 
 export { keyInfo, saveKey } from "./google-auth";
 
@@ -57,7 +58,8 @@ export async function api(apiPath: string, body?: unknown) {
     // headers — without this, an authenticated call can silently replay another request's
     // (or another token's) cached response. Found by hand: a fresh, valid token still got
     // a stale 403 back through this exact route until this flag was added.
-  });
+    ...googleDispatcher,
+  } as RequestInit);
   if (!res.ok) {
     let msg = (await res.text()).slice(0, 300);
     if (res.status === 403) msg = "دسترسی ندارد: ایمیل Service Account را در Search Console این سایت به‌عنوان کاربر اضافه کنید. " + msg;

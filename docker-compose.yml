@@ -11,6 +11,7 @@ services:
       AI_GATEWAY_URL: ${AI_GATEWAY_URL:-}
       AI_GATEWAY_TOKEN: ${AI_GATEWAY_TOKEN:-}
       AI_GATEWAY_MODEL: ${AI_GATEWAY_MODEL:-}
+      GOOGLE_PROXY_URL: ${GOOGLE_PROXY_URL:-}
     volumes:
       - hub-next-data:/data
     ports: ["${HUB_HOST_PORT:-4500}:4500"]

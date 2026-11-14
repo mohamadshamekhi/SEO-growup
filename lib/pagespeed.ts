@@ -3,6 +3,7 @@
 import { getSetting, run } from "./db";
 import { catalogRows } from "./catalog";
 import type { ProjectRow } from "./projects";
+import { googleDispatcher } from "./google-proxy";
 
 function keyPages(project: ProjectRow): string[] {
   const base = `https://${project.domain}/`;
@@ -35,7 +36,7 @@ export async function runSpeed(project: ProjectRow, progress: (done: number, tot
       const qs = new URLSearchParams(params);
       let d: LighthouseResult;
       try {
-        const res = await fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${qs}`, { cache: "no-store" });
+        const res = await fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${qs}`, { cache: "no-store", ...googleDispatcher } as RequestInit);
         if (!res.ok) {
           if (res.status === 429 && !key) throw new Error("سهمیه رایگان بدون کلید تمام شده؛ کلید رایگان PageSpeed را در تنظیمات وارد کنید.");
           errors.push(`${res.status} ${await res.text()}`.slice(0, 160));

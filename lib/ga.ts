@@ -2,6 +2,7 @@
 // key as GSC, different scope).
 import { getSetting, setSetting } from "./db";
 import { token, GA_SCOPE, keyInfo } from "./google-auth";
+import { googleDispatcher } from "./google-proxy";
 import type { ProjectRow } from "./projects";
 
 export function getProperty(pid: string): string {
@@ -22,7 +23,8 @@ async function report(prop: string, body: unknown): Promise<{ rows?: DimValue[] 
     headers: { Authorization: `Bearer ${await token(GA_SCOPE)}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
     cache: "no-store", // see lib/gsc.ts's api() for why this is required, not optional
-  });
+    ...googleDispatcher,
+  } as RequestInit);
   if (!res.ok) {
     const text = await res.text();
     if (res.status === 403 && (text.includes("has not been used") || text.includes("SERVICE_DISABLED"))) {
