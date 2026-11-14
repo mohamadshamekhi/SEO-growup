@@ -18,6 +18,7 @@ import { DATA_DIR, getSetting, now as dbNow, q, run, setSetting } from "./db";
 import { renderImage } from "./tools";
 import * as planner from "./planner";
 import type { ProjectRow } from "./projects";
+import { proxiedFetch } from "./google-proxy";
 
 const MAX_TRIES = 5;
 const TG_API = (process.env.HUB_TELEGRAM_API || "https://api.telegram.org").replace(/\/+$/, "");
@@ -78,7 +79,7 @@ async function post(c: TgConfig, chat: string, msg: string) {
     const body = JSON.stringify({ chat_id: chat, text: msg.slice(i, i + 3900), disable_web_page_preview: true });
     let res: Response;
     try {
-      res = await fetch(`${TG_API}/bot${c.token}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body, cache: "no-store", signal: AbortSignal.timeout(30_000) });
+      res = await proxiedFetch(`${TG_API}/bot${c.token}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body, cache: "no-store", signal: AbortSignal.timeout(30_000) });
     } catch (e) {
       throw new Error(String((e as Error).message || e).replace(c.token, "***").slice(0, 160));
     }

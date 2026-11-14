@@ -1,11 +1,12 @@
-// Google (googleapis.com) is network-blocked outright from this server's IP (even public,
-// unauthenticated endpoints 403 with Google's own block page) — confirmed via direct curl.
-// deb.debian.org/Playwright's CDN had mirror workarounds; Google does not. The only fix is
-// routing just the Google calls through a non-Iran egress (a tinyproxy instance on another
-// server). GOOGLE_PROXY_URL is optional — unset, Google calls go out directly as before.
+// Several outbound destinations are network-blocked outright from this server's IP: Google
+// (googleapis.com, even public unauthenticated endpoints — confirmed via direct curl) and
+// Telegram (api.telegram.org — officially blocked in Iran). deb.debian.org/Playwright's CDN
+// had mirror workarounds; these don't. The fix is routing just those calls through a non-Iran
+// egress (a tinyproxy instance on another server). EGRESS_PROXY_URL is optional — unset,
+// calls go out directly as before.
 import { fetch as undiciFetch, ProxyAgent, type Dispatcher } from "undici";
 
-const PROXY_URL = process.env.GOOGLE_PROXY_URL || "";
+const PROXY_URL = process.env.EGRESS_PROXY_URL || process.env.GOOGLE_PROXY_URL || "";
 
 let agent: Dispatcher | undefined;
 if (PROXY_URL) agent = new ProxyAgent(PROXY_URL);
@@ -14,6 +15,9 @@ if (PROXY_URL) agent = new ProxyAgent(PROXY_URL);
 // the separately-installed `undici` npm package (version-internal handler mismatch: "invalid
 // onRequestStart method"). Using this package's own fetch keeps dispatcher + fetch from the
 // same undici build, so they're actually compatible. No proxy set -> plain global fetch.
-export const googleFetch: typeof fetch = agent
+export const proxiedFetch: typeof fetch = agent
   ? ((url, init) => undiciFetch(url as string, { ...(init as object), dispatcher: agent }) as unknown as Promise<Response>)
   : fetch;
+
+// Back-compat name (lib/google-auth.ts, gsc.ts, ga.ts, extras.ts, pagespeed.ts).
+export const googleFetch = proxiedFetch;
