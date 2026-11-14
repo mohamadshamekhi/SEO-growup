@@ -8,7 +8,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { DATA_DIR } from "./db";
-import { googleDispatcher } from "./google-proxy";
+import { googleFetch } from "./google-proxy";
 
 const KEY_PATH = path.join(DATA_DIR, "keys", "gsc.json");
 export const GSC_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
@@ -58,13 +58,12 @@ export async function token(scope: string): Promise<string> {
   const signature = b64url(signer.sign(k.private_key));
   const assertion = `${header}.${claim}.${signature}`;
 
-  const res = await fetch(k.token_uri, {
+  const res = await googleFetch(k.token_uri, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
     cache: "no-store", // this is a token exchange; Next's URL-keyed fetch cache must never serve a stale one
-    ...googleDispatcher,
-  } as RequestInit);
+  });
   if (!res.ok) throw new Error(`Google token exchange failed: ${res.status}`);
   const r = await res.json();
   tokenCache.set(scope, { value: r.access_token, exp: Date.now() / 1000 + (r.expires_in || 3600) });

@@ -10,17 +10,16 @@ import { DATA_DIR, db, many, now as dbNow, one, q, run } from "./db";
 import { token as googleToken, GSC_SCOPE } from "./google-auth";
 import { publicUrl, compare } from "./tools";
 import type { ProjectRow } from "./projects";
-import { googleDispatcher } from "./google-proxy";
+import { googleFetch } from "./google-proxy";
 
 async function get(url: string, body?: unknown, headers?: Record<string, string>, timeoutMs = 120_000) {
-  const res = await fetch(url, {
+  const res = await googleFetch(url, {
     method: body !== undefined ? "POST" : "GET",
     headers: { "Content-Type": "application/json", ...(headers || {}) },
     body: body !== undefined ? JSON.stringify(body) : undefined,
     cache: "no-store",
     signal: AbortSignal.timeout(timeoutMs),
-    ...googleDispatcher,
-  } as RequestInit);
+  });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`HTTP ${res.status}: ${text.slice(0, 240)}`);

@@ -3,7 +3,7 @@
 import { many, one, q, run } from "./db";
 import { project, type ProjectRow } from "./projects";
 import { keyInfo, token, GSC_SCOPE } from "./google-auth";
-import { googleDispatcher } from "./google-proxy";
+import { googleFetch } from "./google-proxy";
 
 export { keyInfo, saveKey } from "./google-auth";
 
@@ -50,7 +50,7 @@ export function gscData(pid: string) {
 // ---------- live Search Console API (hub/gsc.py) ----------
 
 export async function api(apiPath: string, body?: unknown) {
-  const res = await fetch(`https://www.googleapis.com/webmasters/v3${apiPath}`, {
+  const res = await googleFetch(`https://www.googleapis.com/webmasters/v3${apiPath}`, {
     method: body ? "POST" : "GET",
     headers: { Authorization: `Bearer ${await token(GSC_SCOPE)}`, "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
@@ -58,8 +58,7 @@ export async function api(apiPath: string, body?: unknown) {
     // headers — without this, an authenticated call can silently replay another request's
     // (or another token's) cached response. Found by hand: a fresh, valid token still got
     // a stale 403 back through this exact route until this flag was added.
-    ...googleDispatcher,
-  } as RequestInit);
+  });
   if (!res.ok) {
     let msg = (await res.text()).slice(0, 300);
     if (res.status === 403) msg = "دسترسی ندارد: ایمیل Service Account را در Search Console این سایت به‌عنوان کاربر اضافه کنید. " + msg;
