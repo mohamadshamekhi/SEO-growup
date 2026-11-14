@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { project } from "@/lib/projects";
 import { gscData } from "@/lib/gsc";
 import { faNum } from "@/lib/intl/fa";
+import { one } from "@/lib/db";
+import { GscPullButton } from "./gsc-pull-button";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +13,16 @@ export default async function GscTab({ params }: { params: Promise<{ projectId: 
   const { projectId } = await params;
   if (!project(projectId)) notFound();
   const d = gscData(projectId);
+  const lastRun = one<{ status: string; started_at: number; error: string }>(
+    "SELECT status, started_at, error FROM runs WHERE project_id=? AND kind='gsc' ORDER BY id DESC LIMIT 1",
+    projectId,
+  );
 
   if (!d.snap) {
     return (
       <div>
         <div className="page-head"><div className="head-title"><h1>سرچ کنسول</h1></div></div>
+        <GscPullButton projectId={projectId} lastRun={lastRun} />
         <div className="empty-inline"><p>هنوز داده‌ای از Search Console خوانده نشده (یا هنوز متصل نیست).</p></div>
       </div>
     );
@@ -24,6 +31,7 @@ export default async function GscTab({ params }: { params: Promise<{ projectId: 
   return (
     <div>
       <div className="page-head"><div className="head-title"><h1>سرچ کنسول</h1></div></div>
+      <GscPullButton projectId={projectId} lastRun={lastRun} />
       {d.opportunities.length > 0 && (
         <section className="panel" style={{ marginBottom: 14 }}>
           <h3>فرصت‌ها <span className="count">{faNum(d.opportunities.length)}</span></h3>
