@@ -106,7 +106,12 @@ export function lastTimes(pid: string): Partial<Record<JobKey, number | null>> {
   const u = one<{ t: number | null }>("SELECT MAX(ts) t FROM uptime WHERE project_id=?", pid);
   const r = one<{ t: number | null }>("SELECT MAX(ts) t FROM reports WHERE project_id=?", pid);
   out.uptime = u?.t ?? null;
-  out.report = r?.t ?? null;
+  // "report" isn't built yet (lib/jobs/queues.ts's NOT_IMPLEMENTED) — every dispatch fails
+  // immediately and never reaches the `reports` table, so relying on that alone left `last`
+  // permanently null and isDue() permanently true: the scheduler re-enqueued it every 60s
+  // tick forever. Falling back to the runs-table attempt time (same as every other job kind)
+  // makes a failed attempt count too, so it waits the normal interval like everything else.
+  out.report = r?.t ?? out.report ?? null;
   return out;
 }
 
