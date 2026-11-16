@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
+import NavProgress from "@/components/NavProgress";
 
 // RTL + Vazirmatn, matching the Python app's public/index.html exactly (lang="fa" dir="rtl",
 // same font). A tiny pre-paint inline script applies the saved theme before first render to
@@ -23,7 +25,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <Suspense fallback={null}><NavProgress /></Suspense>
+        {children}
+      </body>
     </html>
   );
 }
