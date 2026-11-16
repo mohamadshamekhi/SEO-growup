@@ -684,3 +684,17 @@ details[open] > summary .task-why { display: none; }
 .watch-rivals { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
 .watch-rivals li { display: grid; gap: 1px; min-width: 0; }
 .watch-rivals .url { font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+
+/* search console workbench */
+.seo-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 12px 0 14px; }
+.seo-toolbar { gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.seo-toolbar .seg { display: flex; gap: 4px; flex-wrap: wrap; }
+.seo-table td { vertical-align: top; }
+.seo-url { font-size: 11px; color: var(--muted); max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; text-align: left; margin-top: 2px; }
+.seo-last { margin-top: 4px; color: var(--muted); }
+.chip.good { background: var(--accent-soft); color: var(--accent); }
+.chip.info { background: var(--info-soft); color: var(--info); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.bad { background: var(--danger-soft); color: var(--danger); }
+.up { color: var(--accent); }
+.down { color: var(--danger); }

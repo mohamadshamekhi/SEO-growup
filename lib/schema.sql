@@ -256,3 +256,10 @@ CREATE TABLE IF NOT EXISTS watch_auto (
   project_id TEXT, mine TEXT, watch_id INTEGER, blocked INTEGER DEFAULT 0, reasons TEXT DEFAULT '{}',
   PRIMARY KEY(project_id, mine)
 );
+
+-- What the panel did for a Google query (optimize / article / merge guide), with the position at that moment, to show the effect later.
+CREATE TABLE IF NOT EXISTS seo_actions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, project_id TEXT, query TEXT, url TEXT, action TEXT,
+  detail TEXT DEFAULT '{}', position_before REAL, impressions_before REAL, ts REAL
+);
+CREATE INDEX IF NOT EXISTS seo_actions_pq ON seo_actions(project_id, query);

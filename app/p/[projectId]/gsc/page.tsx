@@ -1,17 +1,23 @@
 import { notFound } from "next/navigation";
 import { project } from "@/lib/projects";
 import { gscData } from "@/lib/gsc";
-import { faNum } from "@/lib/intl/fa";
 import { one } from "@/lib/db";
 import { GscPullButton } from "./gsc-pull-button";
+import { GscClient } from "./gsc-client";
+import { queryRows, summary } from "@/lib/seo-actions";
+import { currentUser } from "@/lib/server/current-user";
+import { role } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-const OPP_FA: Record<string, string> = { striking: "نزدیک صفحه اول", low_ctr: "نرخ کلیک پایین", dropping: "افت جایگاه" };
 
 export default async function GscTab({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
-  if (!project(projectId)) notFound();
+  const proj = project(projectId);
+  if (!proj) notFound();
+  const user = await currentUser();
+  const r = user ? role(user, projectId) : null;
+  const canEdit = r === "admin" || r === "editor";
   const d = gscData(projectId);
   const lastRun = one<{ status: string; started_at: number; error: string }>(
     "SELECT status, started_at, error FROM runs WHERE project_id=? AND kind='gsc' ORDER BY id DESC LIMIT 1",
@@ -28,46 +34,13 @@ export default async function GscTab({ params }: { params: Promise<{ projectId: 
     );
   }
 
+  const { rows } = queryRows(proj);
   return (
     <div>
       <div className="page-head"><div className="head-title"><h1>سرچ کنسول</h1></div></div>
+      <p className="page-note">هر کلمه‌ای که سایت در گوگل برایش دیده می‌شود، با صفحه‌اش، وضعیتش و کاری که آن را به صفحه اول می‌برد.</p>
       <GscPullButton projectId={projectId} lastRun={lastRun} />
-      {d.opportunities.length > 0 && (
-        <section className="panel" style={{ marginBottom: 14 }}>
-          <h3>فرصت‌ها <span className="count">{faNum(d.opportunities.length)}</span></h3>
-          <div className="table-wrap plain">
-            <table>
-              <thead><tr><th>کلمه</th><th>نوع</th><th className="num">جایگاه</th><th className="num">نمایش</th><th>چرا</th></tr></thead>
-              <tbody>
-                {d.opportunities.slice(0, 30).map((o, i) => (
-                  <tr key={i}>
-                    <td>{o.key}</td>
-                    <td><span className="chip info">{OPP_FA[o.type] || o.type}</span></td>
-                    <td className="num">{faNum(o.position, 1)}</td>
-                    <td className="num">{faNum(o.impressions)}</td>
-                    <td className="muted" style={{ fontSize: 12 }}>{o.why}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-      <section className="panel">
-        <h3>پرکلیک‌ترین کلمات</h3>
-        <div className="table-wrap plain">
-          <table>
-            <thead><tr><th>کلمه</th><th className="num">کلیک</th><th className="num">نمایش</th><th className="num">جایگاه</th></tr></thead>
-            <tbody>
-              {d.queries.slice(0, 30).map((q, i) => (
-                <tr key={i}>
-                  <td>{q.key}</td><td className="num">{faNum(q.clicks)}</td><td className="num">{faNum(q.impressions)}</td><td className="num">{faNum(q.position, 1)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <GscClient projectId={projectId} rows={rows} summary={summary(proj, rows)} canEdit={canEdit} />
     </div>
   );
 }
