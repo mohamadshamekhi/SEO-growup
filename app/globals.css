@@ -669,3 +669,12 @@ details[open] > summary .task-why { display: none; }
 .sk-line { height: 14px; width: 260px; }
 .sk-block { height: 140px; width: 100%; }
 @media (prefers-reduced-motion: reduce) { .nav-progress.on span { width: 60%; } }
+
+/* watches: suggested rivals */
+.rival-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.rival-list li { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.rival-list li.on { border-color: var(--accent); background: var(--accent-soft); }
+.rival-list label { display: flex; gap: 10px; align-items: flex-start; padding: 9px 12px; cursor: pointer; min-height: 44px; }
+.rival-list input { margin-top: 4px; }
+.rival-main { display: grid; gap: 2px; min-width: 0; }
+.rival-main .url { font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
