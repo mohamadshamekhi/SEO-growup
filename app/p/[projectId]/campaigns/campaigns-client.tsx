@@ -9,6 +9,8 @@ import { api, ApiError } from "@/lib/client/api";
 import { faNum } from "@/lib/intl/fa";
 import Icon from "@/components/Icon";
 import type { CampaignRow, CampaignType, CampaignStatus } from "@/lib/campaigns";
+import type { CampaignPlan } from "@/lib/campaign-plan";
+import { PlanView, planText } from "./plan-view";
 
 const TYPES: Record<CampaignType, string> = { seasonal: "فصلی/تخفیفی", content: "محتوایی", paid: "تبلیغاتی پولی" };
 const STATUSES: Record<CampaignStatus, string> = { planned: "برنامه‌ریزی‌شده", active: "فعال", paused: "متوقف", done: "پایان‌یافته", archived: "آرشیو" };
@@ -49,7 +51,7 @@ function idList(s: string): number[] {
   return s.split("\n").map((x) => Number(x.trim())).filter((n) => Number.isFinite(n) && n > 0);
 }
 
-export function CampaignsClient({ projectId, initial }: { projectId: string; initial: CampaignRow[] }) {
+export function CampaignsClient({ projectId, initial, initialPlans }: { projectId: string; initial: CampaignRow[]; initialPlans: Record<number, CampaignPlan> }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [rows, setRows] = useState(initial);
@@ -59,13 +61,41 @@ export function CampaignsClient({ projectId, initial }: { projectId: string; ini
   const [busy, setBusy] = useState(false);
   const [autoTitle, setAutoTitle] = useState("");
   const [autoBusy, setAutoBusy] = useState(false);
+  const [plans, setPlans] = useState(initialPlans);
+  const [planBusy, setPlanBusy] = useState<number | null>(null);
+  const [viewing, setViewing] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
+  const planRef = useRef<HTMLDialogElement>(null);
+
+  function showPlan(id: number) { setViewing(id); setCopied(false); planRef.current?.showModal(); }
+
+  async function buildPlan(c: CampaignRow) {
+    setPlanBusy(c.id); setErr("");
+    try {
+      const res = await api<{ plan: CampaignPlan; product_urls: string[] }>(`/api/campaigns/${c.id}/plan`, { method: "POST" });
+      setPlans((prev) => ({ ...prev, [c.id]: res.plan }));
+      setRows((prev) => prev.map((r) => (r.id === c.id ? { ...r, product_urls: res.product_urls } : r)));
+      showPlan(c.id);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "خطا");
+    } finally {
+      setPlanBusy(null);
+    }
+  }
+
+  async function copyPlan(c: CampaignRow, plan: CampaignPlan) {
+    try { await navigator.clipboard.writeText(planText(c.name, plan)); setCopied(true); } catch { setErr("کپی ممکن نشد"); }
+  }
 
   async function autoGen() {
     setAutoBusy(true); setErr("");
     try {
-      const c = await api<CampaignRow>(`/api/projects/${projectId}/campaigns/auto`, { method: "POST", body: { title: autoTitle || undefined } });
-      setRows([c, ...rows]);
+      const c = await api<CampaignRow & { plan: CampaignPlan | null; plan_error: string }>(`/api/projects/${projectId}/campaigns/auto`, { method: "POST", body: { title: autoTitle || undefined } });
+      const { plan, plan_error, ...row } = c;
+      setRows([row, ...rows]);
       setAutoTitle("");
+      if (plan) { setPlans((prev) => ({ ...prev, [row.id]: plan })); showPlan(row.id); }
+      else if (plan_error) setErr(`کمپین ساخته شد ولی برنامه کامل نه: ${plan_error} — دکمه «ساخت برنامه کامل» روی کارت را بزنید.`);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "خطا");
     } finally {
@@ -144,7 +174,7 @@ export function CampaignsClient({ projectId, initial }: { projectId: string; ini
           onChange={(e) => setAutoTitle(e.target.value)}
         />
         <button type="button" className="btn sm" disabled={autoBusy} onClick={autoGen}>
-          {autoBusy ? "در حال ساخت..." : "ساخت خودکار با هوش مصنوعی"}
+          {autoBusy ? "در حال ساخت کمپین و برنامه کامل..." : "ساخت خودکار با هوش مصنوعی"}
         </button>
       </div>
 
@@ -176,7 +206,15 @@ export function CampaignsClient({ projectId, initial }: { projectId: string; ini
                   {roas != null && ` · ROAS ${faNum(roas, 2)}`}
                 </p>
               )}
-              <div className="row" style={{ gap: 6, marginTop: 8 }}>
+              {plans[c.id]?.big_idea && <p style={{ marginTop: 6 }}>ایده: {plans[c.id].big_idea}</p>}
+              <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                {plans[c.id] ? (
+                  <button type="button" className="btn sm primary" onClick={() => showPlan(c.id)}>برنامه کامل</button>
+                ) : (
+                  <button type="button" className="btn sm primary" disabled={planBusy !== null} aria-busy={planBusy === c.id} onClick={() => buildPlan(c)}>
+                    {planBusy === c.id ? "در حال نوشتن برنامه..." : "ساخت برنامه کامل"}
+                  </button>
+                )}
                 <button type="button" className="btn sm" onClick={() => openEdit(c)}>ویرایش</button>
                 <button type="button" className="btn sm danger" onClick={() => del(c.id)}>حذف</button>
               </div>
@@ -184,6 +222,29 @@ export function CampaignsClient({ projectId, initial }: { projectId: string; ini
           );
         })}
       </div>
+
+      <dialog ref={planRef} className="modal wide plan-dialog" aria-labelledby="plan-title" onClose={() => setViewing(null)}>
+        {viewing != null && plans[viewing] && (() => {
+          const c = rows.find((r) => r.id === viewing)!;
+          const plan = plans[viewing];
+          return (
+            <div className="modal-pad">
+              <div className="plan-top">
+                <div>
+                  <h2 id="plan-title">{c.name}</h2>
+                  <p className="muted small">{TYPES[c.type]} · <span className="ltr">{c.start_date || "—"} تا {c.end_date || "—"}</span></p>
+                </div>
+                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+                  <button type="button" className="btn sm" onClick={() => copyPlan(c, plan)}>{copied ? "کپی شد" : "کپی کل برنامه"}</button>
+                  <button type="button" className="btn sm" disabled={planBusy !== null} onClick={() => buildPlan(c)}>{planBusy === c.id ? "در حال نوشتن..." : "ساخت دوباره"}</button>
+                  <button type="button" className="btn sm" onClick={() => planRef.current?.close()}>بستن</button>
+                </div>
+              </div>
+              <PlanView plan={plan} />
+            </div>
+          );
+        })()}
+      </dialog>
 
       <dialog ref={dialogRef} className="modal wide">
         <div className="modal-pad">

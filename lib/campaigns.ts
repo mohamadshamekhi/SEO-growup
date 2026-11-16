@@ -87,6 +87,7 @@ export function update(id: number, body: Partial<CampaignInput>): void {
 }
 
 export function remove(id: number): void {
+  run("DELETE FROM campaign_plans WHERE campaign_id=?", id);
   run("DELETE FROM campaigns WHERE id=?", id);
 }
 

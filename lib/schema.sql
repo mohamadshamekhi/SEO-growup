@@ -243,3 +243,10 @@ CREATE TABLE IF NOT EXISTS issue_diagnoses (
   data TEXT NOT NULL,
   created REAL NOT NULL
 );
+
+-- Full campaign brief («برنامه کامل»): overview, storyline, timeline, products with reasons, channel content.
+CREATE TABLE IF NOT EXISTS campaign_plans (
+  campaign_id INTEGER PRIMARY KEY,
+  data TEXT NOT NULL,
+  created REAL NOT NULL
+);

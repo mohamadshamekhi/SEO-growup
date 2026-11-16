@@ -629,3 +629,29 @@ details[open] > summary .task-why { display: none; }
 .diag-code { margin: 0 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
 .diag-code-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: var(--surface-3); font-size: 12px; color: var(--fg-2); }
 .diag-code pre { margin: 0; padding: 10px 12px; background: var(--bg); color: var(--fg); font-family: var(--mono); font-size: 12px; line-height: 1.6; overflow-x: auto; text-align: left; }
+
+/* campaign full plan */
+.plan-dialog { max-width: min(1100px, calc(100vw - 32px)); width: 100%; }
+.plan-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; position: sticky; top: 0; background: var(--surface); padding-bottom: 10px; border-bottom: 1px solid var(--border); z-index: 1; }
+.plan-top h2 { margin: 0; font-size: 18px; }
+.plan { font-size: 14px; line-height: 1.9; color: var(--fg-2); }
+.plan section { margin-top: 22px; }
+.plan h3 { margin: 0 0 10px; font-size: 15px; color: var(--fg); }
+.plan p { margin: 0 0 8px; }
+.plan-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 12px; }
+.plan-facts > div { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; display: grid; gap: 4px; }
+.plan-facts span { font-size: 12px; color: var(--muted); }
+.plan-facts strong { color: var(--fg); font-weight: 600; }
+.plan-story { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: st; }
+.plan-story li { position: relative; padding: 10px 14px; padding-inline-start: 44px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); counter-increment: st; }
+.plan-story li::before { content: counter(st); position: absolute; inset-inline-start: 12px; top: 12px; width: 22px; height: 22px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+.plan-story-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; color: var(--fg); }
+.plan-list { margin: 0; padding-inline-start: 18px; }
+.plan .nowrap { white-space: nowrap; }
+.plan-products, .plan-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
+.plan-product, .plan-piece { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; }
+.plan-product a { color: var(--fg); }
+.plan-hook { color: var(--fg); font-weight: 600; margin-top: 8px !important; }
+.plan-copy { white-space: pre-wrap; }
+.plan-two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 720px) { .plan-two { grid-template-columns: 1fr; } .plan-products, .plan-content { grid-template-columns: 1fr; } }
