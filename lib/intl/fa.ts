@@ -13,5 +13,6 @@ export function fromFaDigits(value: string): string {
 
 export function faNum(value: number, maxFractionDigits = 0): string {
   if (value == null || Number.isNaN(value)) return "—";
-  return toFaDigits(value.toLocaleString("en-US", { maximumFractionDigits: maxFractionDigits }));
+  // Persian separators: «٬» for thousands, «٫» for decimals.
+  return toFaDigits(value.toLocaleString("en-US", { maximumFractionDigits: maxFractionDigits }).replace(/,/g, "٬").replace(/\./g, "٫"));
 }

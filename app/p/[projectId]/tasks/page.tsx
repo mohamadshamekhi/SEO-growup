@@ -10,7 +10,7 @@ export default async function TasksTab({ params }: { params: Promise<{ projectId
   const { projectId } = await params;
   if (!project(projectId)) notFound();
 
-  const rows = q<{ id: number; title: string; status: string; due: string; assignee: string | null; assignee_id: number | null }>(
+  const rows = q<{ id: number; title: string; status: string; due: string; assignee: string | null; assignee_id: number | null; ref: string }>(
     `SELECT t.*, u.name assignee FROM tasks t LEFT JOIN users u ON u.id=t.assignee_id
      WHERE t.project_id=? ORDER BY t.status='done', t.due='', t.due, t.id DESC LIMIT 300`,
     projectId,

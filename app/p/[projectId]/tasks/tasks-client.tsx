@@ -1,9 +1,10 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api, ApiError } from "@/lib/client/api";
 
-type Task = { id: number; title: string; status: string; due: string; assignee: string | null; assignee_id: number | null };
+type Task = { id: number; title: string; status: string; due: string; assignee: string | null; assignee_id: number | null; ref?: string };
 
 const STATUS_FA: Record<string, string> = { todo: "برای انجام", doing: "در حال انجام", done: "انجام‌شده" };
 
@@ -64,7 +65,7 @@ export function TasksClient({ projectId, initialTasks }: { projectId: string; in
                   {Object.entries(STATUS_FA).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
               </td>
-              <td>{t.title}</td>
+              <td>{t.ref?.startsWith("/") ? <Link href={t.ref}>{t.title}</Link> : t.title}{t.ref?.startsWith("/p/") && t.ref.includes("/today") && <span className="muted small"> · پیش‌نویس آماده</span>}</td>
               <td>{t.assignee || "—"}</td>
               <td className="ltr">{t.due || "—"}</td>
               <td><button className="btn sm danger" onClick={() => del(t.id)}>حذف</button></td>

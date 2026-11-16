@@ -755,3 +755,29 @@ article.todo-card { grid-template-columns: 1fr auto; }
   .todo-acts { flex-direction: row; flex-wrap: wrap; min-width: 0; }
   .draft-fields > div { grid-template-columns: 1fr; gap: 2px; }
 }
+
+/* keywords page */
+.badge { display: inline-block; white-space: nowrap; font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px solid transparent; }
+.st-gap { background: var(--accent-soft); color: var(--accent); }
+.st-weak { background: var(--warn-soft); color: var(--warn); }
+.st-norank { background: var(--info-soft); color: var(--info); }
+.st-lead { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.st-other { background: var(--surface-3); color: var(--muted); }
+.st-gap-x { color: var(--accent); } .st-weak-x { color: var(--warn); } .st-norank-x { color: var(--info); } .st-other-x { color: var(--muted); }
+.cavs { display: inline-flex; gap: 3px; flex-wrap: wrap; vertical-align: middle; }
+.cav { width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 11px; font-weight: 700; color: #fff; flex: none; }
+.th-sort { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; padding: 0; white-space: nowrap; }
+.th-sort:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.phrase-btn { background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; text-align: start; }
+.phrase-btn:hover strong { text-decoration: underline; }
+.kw-table td.acts { white-space: nowrap; }
+.kw-table td.acts > * { vertical-align: middle; }
+.kw-table th.chk, .kw-table td.chk { width: 32px; }
+.kw-table tr.sel td { background: var(--accent-soft); }
+.build-menu { position: relative; display: inline-block; margin-inline-end: 4px; }
+.build-menu .menu { position: absolute; inset-inline-end: 0; top: calc(100% + 4px); z-index: 20; min-width: 190px; background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); box-shadow: var(--shadow); padding: 4px; display: grid; }
+.build-menu .menu button { background: none; border: 0; color: var(--fg); text-align: start; padding: 9px 10px; border-radius: 6px; cursor: pointer; font: inherit; min-height: 38px; }
+.build-menu .menu button:hover, .build-menu .menu button:focus-visible { background: var(--surface-2); }
+.pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 10px; }
+.kw-detail p { margin: 0 0 4px; }
+.bulkbar { align-items: center; background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 4px 8px; }
