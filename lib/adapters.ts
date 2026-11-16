@@ -12,7 +12,7 @@ import { DATA_DIR, one, run } from "./db";
 import type { ProjectRow } from "./projects";
 
 export const WRITABLE: Record<string, readonly string[]> = {
-  steve: ["seo_title", "description", "meta_description", "brand", "image_alt", "internal_link", "kw_title", "kw_description", "kw_refresh", "kw_faq", "cro_description", "oos_links"],
+  steve: ["seo_title", "description", "meta_description", "brand", "image_alt", "internal_link", "kw_title", "kw_description", "kw_refresh", "kw_faq", "cro_description", "oos_links", "article_img_alt"],
   wordpress: ["seo_title", "meta_description", "description", "kw_title", "kw_description", "cro_description", "oos_links"],
   custom: ["seo_title", "meta_description", "description", "kw_title", "kw_description", "cro_description", "oos_links"],
 };
@@ -129,6 +129,15 @@ export class Steve implements SiteAdapter {
     return (d.article ?? d) as Record<string, unknown>;
   }
 
+  /** Full article (the storefront lookup omits the body). */
+  async articleBody(url: string): Promise<{ id: string; title: string; body: string }> {
+    const a = await this.article(decodeURIComponent(url));
+    const aid = (a.id || a._id) as string;
+    const fullRes = await this.req("GET", `/article/${aid}`);
+    const full = (fullRes.article ?? fullRes) as Record<string, unknown>;
+    return { id: aid, title: String(full.title || a.title || ""), body: String(full.body || "") };
+  }
+
   async brandId(name: string): Promise<string> {
     const norm = (s: string) => String(s || "").toLowerCase().replace(/\s+/g, "");
     for (let page = 1; page < 30; page++) {
@@ -204,6 +213,14 @@ export class Steve implements SiteAdapter {
       if (crypto.createHash("sha256").update(String(full.body || "")).digest("hex") !== fix.base_hash) throw new Error("مقاله بعد از آماده شدن لینک‌ها عوض شده؛ دوباره رفع خودکار بزنید");
       await this.req("PATCH", `/article/${aid}`, { body: val });
       return { kind: "article", id: aid, before: { body: full.body || "" } };
+    }
+    if (t === "article_img_alt") {
+      const { id: aid, body } = await this.articleBody(url);
+      const alts = JSON.parse(val) as Record<string, string>;
+      const next = fillImgAlts(body, alts);
+      if (next === body) throw new Error("عکس بدون alt در متن مقاله پیدا نشد؛ چیزی تغییر نکرد");
+      await this.req("PATCH", `/article/${aid}`, { body: next });
+      return { kind: "article", id: aid, before: { body } };
     }
     if (t === "image_alt") {
       const p = await this.product(url);
@@ -422,6 +439,7 @@ export async function applyFixes(project: ProjectRow, ids: number[], user: strin
         : f.type === "kw_refresh" ? "متن مقاله بازنویسی شد"
         : f.type === "kw_faq" ? "پرسش‌های متداول اضافه شد"
         : f.type === "cro_description" ? "توضیح محصول بازنویسی شد"
+        : f.type === "article_img_alt" ? `alt برای ${Object.keys(JSON.parse(f.proposed)).length} عکس مقاله نوشته شد`
         : f.proposed;
       run(
         "INSERT INTO applied(project_id,fix_id,url,type,before,after,ts,user_name) VALUES (?,?,?,?,?,?,?,?)",
@@ -450,4 +468,25 @@ export async function undoApplied(appliedId: number) {
     );
   }
   run("UPDATE fixes SET status='approved', updated=? WHERE id=?", Date.now() / 1000, a.fix_id);
+}
+
+const IMG_TAG = /<img\b[^>]*>/gi;
+const hasAlt = (tag: string) => /\balt\s*=\s*(?:"\s*[^"\s][^"]*"|'\s*[^'\s][^']*')/i.test(tag);
+const srcOf = (tag: string) => (/\bsrc\s*=\s*(["'])(.*?)\1/i.exec(tag)?.[2] || "");
+
+/** src of every <img> in an article body whose alt is missing or empty, in document order. */
+export function imgsWithoutAlt(body: string): string[] {
+  return (body.match(IMG_TAG) || []).filter((t) => !hasAlt(t)).map(srcOf).filter(Boolean);
+}
+
+/** Adds alt only to <img> tags that have none (or an empty one); never touches an existing alt. */
+export function fillImgAlts(body: string, alts: Record<string, string>): string {
+  return body.replace(IMG_TAG, (tag) => {
+    if (hasAlt(tag)) return tag;
+    const alt = alts[srcOf(tag)];
+    if (!alt) return tag;
+    const safe = alt.replace(/"/g, "&quot;").replace(/</g, "&lt;");
+    const stripped = tag.replace(/\salt\s*=\s*(["'])\s*\1/i, "");
+    return stripped.replace(/^<img\b/i, `<img alt="${safe}"`);
+  });
 }

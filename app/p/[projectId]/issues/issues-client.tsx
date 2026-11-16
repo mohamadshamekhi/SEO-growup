@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/client/api";
 
 type Guide = { what: string; why: string; cause: string; steps: string[]; owner: string; coverage: string; related: string[]; viaRedirect: boolean };
-type Issue = { id: number; code: string; severity: string; url: string; detail: string; status: string; label: string; fix: string; canFix: boolean; guide: Guide | null };
+export type Issue = { id: number; code: string; severity: string; url: string; detail: string; status: string; label: string; fix: string; canFix: boolean; guide: Guide | null };
 type AutoFixResult = { ok: boolean; applied?: boolean; proposed?: string; reason?: string; fixedIds?: number[] };
 
 const SEV_FA: Record<string, string> = { critical: "بحرانی", warning: "هشدار", info: "پیشنهاد" };
@@ -14,7 +14,23 @@ const RELATED_LABEL: Record<string, string> = {
   img_no_alt: "تصاویر بدون alt",
 };
 
-export function IssuesClient({ projectId, initialRows }: { projectId: string; initialRows: Issue[] }) {
+/** Self-contained message for whoever has to fix it by hand (developer, server admin, SEO). */
+function handoff(r: Issue): string {
+  const g = r.guide!;
+  return [
+    `${g.owner} عزیز، این مشکل سئو را لطفاً رفع کن:`,
+    `مشکل: ${r.label}`,
+    `صفحه: ${decodeURIComponent(r.url)}`,
+    r.detail ? `جزئیات: ${r.detail}` : "",
+    `توضیح: ${g.what}`,
+    `چرا مهم است: ${g.why}`,
+    g.coverage ? `دلیل گوگل: ${g.coverage}` : "",
+    g.related.length ? `موارد مرتبط:\n${g.related.map((u) => `- ${decodeURIComponent(u)}`).join("\n")}` : "",
+    `راه رفع:\n${g.steps.map((s, i) => `${i + 1}. ${s}`).join("\n")}`,
+  ].filter(Boolean).join("\n");
+}
+
+export function IssuesClient({ projectId, initialRows, compact = false }: { projectId: string; initialRows: Issue[]; compact?: boolean }) {
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
   const [err, setErr] = useState("");
@@ -48,6 +64,7 @@ export function IssuesClient({ projectId, initialRows }: { projectId: string; in
       if (res.ok && res.applied) {
         const fixed = new Set(res.fixedIds?.length ? res.fixedIds : [r.id]);
         setRows((prev) => prev.filter((x) => !fixed.has(x.id)));
+        router.refresh();
         setMsg(`رفع شد و روی سایت ثبت شد: «${res.proposed}»${fixed.size > 1 ? " (صفحه تکراری مقابل هم دیگر تکراری نیست)" : ""}`);
       } else {
         setErr(res.reason || "رفع خودکار ممکن نشد");
@@ -57,6 +74,16 @@ export function IssuesClient({ projectId, initialRows }: { projectId: string; in
       setErr(e instanceof ApiError ? e.message : "خطا");
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function copyHandoff(r: Issue) {
+    setErr(""); setMsg("");
+    try {
+      await navigator.clipboard.writeText(handoff(r));
+      setMsg(`پیام آماده برای «${r.guide!.owner}» کپی شد؛ همان را برایش بفرستید.`);
+    } catch {
+      setErr("کپی ممکن نشد؛ متن را از پنل «توضیح» بردارید.");
     }
   }
 
@@ -75,9 +102,11 @@ export function IssuesClient({ projectId, initialRows }: { projectId: string; in
 
   return (
     <div>
-      <div className="row" style={{ gap: 8, margin: "0 0 12px" }}>
-        <button type="button" className="btn sm" disabled={checking} onClick={recheck}>بررسی مجدد سایت</button>
-      </div>
+      {!compact && (
+        <div className="row" style={{ gap: 8, margin: "0 0 12px" }}>
+          <button type="button" className="btn sm" disabled={checking} onClick={recheck}>بررسی مجدد سایت</button>
+        </div>
+      )}
       {err && <div className="err" role="alert">{err}</div>}
       {msg && <div className="muted small" style={{ marginBottom: 10 }}>{msg}</div>}
       {!rows.length ? (
@@ -85,14 +114,14 @@ export function IssuesClient({ projectId, initialRows }: { projectId: string; in
       ) : (
         <div className="table-wrap">
           <table>
-            <thead><tr><th>شدت</th><th>عنوان</th><th>صفحه</th><th>جزئیات</th><th /></tr></thead>
+            <thead><tr><th>شدت</th><th>عنوان</th>{!compact && <th>صفحه</th>}<th>جزئیات</th><th /></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <Fragment key={r.id}>
                 <tr>
                   <td><span className={`sev ${r.severity}`}>{SEV_FA[r.severity] || r.severity}</span></td>
                   <td>{r.label}</td>
-                  <td className="url">{r.url}</td>
+                  {!compact && <td className="url">{r.url}</td>}
                   <td className="muted" style={{ fontSize: 12 }}>{r.detail}</td>
                   <td>
                     <div className="row" style={{ gap: 6 }}>
@@ -100,6 +129,9 @@ export function IssuesClient({ projectId, initialRows }: { projectId: string; in
                         <button className="btn sm primary" disabled={busy !== null} aria-busy={busy === r.id} onClick={() => autofix(r)}>
                           {busy === r.id ? "در حال رفع..." : "رفع خودکار"}
                         </button>
+                      )}
+                      {r.status === "open" && !r.canFix && r.guide && (
+                        <button className="btn sm" onClick={() => copyHandoff(r)}>کپی پیام برای {r.guide.owner}</button>
                       )}
                       {r.guide && (
                         <button className="btn sm" aria-expanded={open.has(r.id)} aria-controls={`guide-${r.id}`} onClick={() => toggleGuide(r.id)}>
@@ -114,7 +146,7 @@ export function IssuesClient({ projectId, initialRows }: { projectId: string; in
                 </tr>
                 {r.guide && open.has(r.id) && (
                   <tr id={`guide-${r.id}`} className="guide-row">
-                    <td colSpan={5}><GuidePanel issue={r} guide={r.guide} /></td>
+                    <td colSpan={compact ? 4 : 5}><GuidePanel issue={r} guide={r.guide} /></td>
                   </tr>
                 )}
                 </Fragment>
@@ -158,7 +190,7 @@ function GuidePanel({ issue, guide }: { issue: Issue; guide: Guide }) {
         <dd>{guide.owner}</dd>
       </dl>
       {!issue.canFix && !guide.viaRedirect && (
-        <p className="muted small">این مورد رفع خودکار ندارد چون تغییرش در کد سایت، سرور یا Search Console است، نه یک فیلد متنی.</p>
+        <p className="muted small">این مورد رفع خودکار ندارد چون تغییرش در کد سایت، سرور یا Search Console است، نه یک فیلد متنی. با دکمه «کپی پیام برای {guide.owner}» متن کامل کار را برای مسئولش بفرستید.</p>
       )}
     </div>
   );

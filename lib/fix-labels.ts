@@ -4,5 +4,5 @@ export const FIX_LABEL: Record<string, string> = {
   schema_image: "عکس اسکیما", meta_description: "توضیح متا", internal_link: "لینک داخلی",
   kw_title: "عنوان برای کلمه هدف", kw_description: "توضیح برای کلمه هدف", kw_refresh: "بازنویسی مقاله",
   kw_faq: "پرسش‌های متداول", cro_description: "توضیح محصول برای فروش بیشتر",
-  oos_links: "لینک جایگزین محصول ناموجود", publish: "انتشار مقاله",
+  oos_links: "لینک جایگزین محصول ناموجود", publish: "انتشار مقاله", article_img_alt: "alt عکس‌های مقاله",
 };

@@ -619,3 +619,5 @@ details[open] > summary .task-why { display: none; }
 .guide-urls li { direction: ltr; text-align: left; font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
 .guide-note { margin: 0 0 12px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--info-soft); color: var(--fg); }
 @media (max-width: 720px) { .guide dl { grid-template-columns: 1fr; } .guide dt { margin-top: 6px; } }
+.issue-count { gap: 6px; }
+.guide-row .table-wrap { background: var(--surface); }

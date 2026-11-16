@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 import { project } from "@/lib/projects";
 import { one, q } from "@/lib/db";
 import { faNum } from "@/lib/intl/fa";
+import { U } from "@/lib/crawl";
+import { enrichIssues, type IssueDbRow } from "@/lib/issue-view";
+import { PagesClient } from "./pages-client";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +21,16 @@ export default async function PagesTab({ params }: { params: Promise<{ projectId
     )
     : [];
 
+  const open = enrichIssues(projectId, q<IssueDbRow>(
+    `SELECT * FROM issues WHERE project_id=? AND status='open'
+     ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'warning' THEN 1 ELSE 2 END, code`, projectId,
+  ));
+  const issues: Record<string, typeof open> = {};
+  for (const i of open) (issues[U(i.url)] ||= []).push(i);
+  const pages = rows
+    .map((r) => ({ url: r.url, key: U(r.url), kind: r.kind, status: r.status, title: r.title, words: r.words }))
+    .sort((a, b) => (issues[b.key]?.length || 0) - (issues[a.key]?.length || 0));
+
   return (
     <div>
       <div className="page-head"><div className="head-title"><h1>صفحات</h1></div></div>
@@ -25,23 +38,7 @@ export default async function PagesTab({ params }: { params: Promise<{ projectId
       {run && (
         <>
           <p className="page-note">{faNum(rows.length)} صفحه از آخرین ممیزی</p>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>آدرس</th><th>نوع</th><th>کد</th><th>عنوان</th><th className="num">کلمات</th><th className="num">مشکلات</th></tr></thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr key={i}>
-                    <td className="url">{r.url}</td>
-                    <td>{r.kind}</td>
-                    <td className={r.status >= 400 ? "bad-txt" : ""}>{r.status}</td>
-                    <td style={{ fontSize: 12 }}>{r.title}</td>
-                    <td className="num">{faNum(r.words)}</td>
-                    <td className="num">{r.issues ? <span className="sev warning">{faNum(r.issues)}</span> : faNum(0)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <PagesClient projectId={projectId} rows={pages} issues={issues} />
         </>
       )}
     </div>
