@@ -721,3 +721,37 @@ details[open] > summary .task-why { display: none; }
 .prod-actions { margin-top: 4px; }
 .linkish { background: none; border: 0; padding: 4px 0; color: var(--info); cursor: pointer; font: inherit; min-height: 28px; }
 .linkish:hover, .linkish:focus-visible { text-decoration: underline; }
+
+/* growth engine: today */
+.kpi-btn { text-align: start; cursor: pointer; font: inherit; color: inherit; border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius); padding: 12px 14px; }
+.kpi-btn:hover, .kpi-btn:focus-visible { border-color: var(--border-strong); }
+.kpi-btn.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.ptabs[role="tablist"] { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 6px; overflow-x: auto; }
+.todo-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
+.todo-card { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: start; }
+article.todo-card { grid-template-columns: 1fr auto; }
+.todo-card.focus { border-color: var(--accent); }
+.todo-card h3 { margin: 6px 0 4px; font-size: 15px; color: var(--fg); }
+.todo-card p { margin: 0 0 4px; }
+.todo-rank { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-3); display: grid; place-items: center; font-weight: 700; font-size: 13px; color: var(--fg-2); }
+.todo-body { min-width: 0; }
+.todo-acts { display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 150px; }
+.todo-acts .icon-btn { align-self: flex-end; width: 32px; height: 32px; font-size: 18px; }
+.impact { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.impact-bar { flex: 0 1 160px; height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.impact-bar span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.draft { margin-top: 10px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13.5px; line-height: 1.9; }
+.draft p { margin: 0 0 6px; }
+.draft h4 { margin: 0 0 4px; font-size: 13.5px; color: var(--fg); }
+.draft-fields { display: grid; gap: 6px; margin: 0 0 8px; }
+.draft-fields > div { display: grid; grid-template-columns: 140px 1fr; gap: 10px; }
+.draft-fields dt { color: var(--muted); }
+.draft-fields dd { margin: 0; color: var(--fg); }
+.draft-block { margin-top: 10px; }
+.toast { display: flex; gap: 10px; align-items: center; }
+@media (max-width: 720px) {
+  .todo-card, article.todo-card { grid-template-columns: 1fr; }
+  .todo-rank { display: none; }
+  .todo-acts { flex-direction: row; flex-wrap: wrap; min-width: 0; }
+  .draft-fields > div { grid-template-columns: 1fr; gap: 2px; }
+}

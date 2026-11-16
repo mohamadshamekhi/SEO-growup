@@ -10,6 +10,7 @@ import ProjectNavItem from "@/components/ProjectNav";
 // gates everything under /p/:projectId/* in one place instead of per-route, since the whole
 // subtree needs the same "any role, else 404" rule (not 403 — hides the project's existence).
 const NAV: [string, string, string][] = [
+  ["today", "امروز چه کنم", "play"],
   ["dash", "داشبورد", "grid"],
   ["activity", "فعالیت و کارها", "play"],
   ["issues", "سلامت فنی", "alert"],

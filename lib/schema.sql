@@ -263,3 +263,14 @@ CREATE TABLE IF NOT EXISTS seo_actions (
   detail TEXT DEFAULT '{}', position_before REAL, impressions_before REAL, ts REAL
 );
 CREATE INDEX IF NOT EXISTS seo_actions_pq ON seo_actions(project_id, query);
+
+-- Growth engine: every concrete thing the panel suggests or the team does (one row per action),
+-- with its AI draft, lifecycle (doing → published → measured / dismissed) and before/after numbers.
+CREATE TABLE IF NOT EXISTS growth_actions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, project_id TEXT, skey TEXT, source TEXT, kind TEXT,
+  title TEXT, target TEXT DEFAULT '', url TEXT DEFAULT '', impact INTEGER DEFAULT 0, effort TEXT DEFAULT 'mid',
+  status TEXT DEFAULT 'doing', draft TEXT DEFAULT '{}', baseline TEXT DEFAULT '{}', result TEXT DEFAULT '{}',
+  task_id INTEGER, created_by TEXT, created REAL, updated REAL, published_at REAL
+);
+CREATE INDEX IF NOT EXISTS growth_actions_p ON growth_actions(project_id, status);
+CREATE INDEX IF NOT EXISTS growth_actions_k ON growth_actions(project_id, skey);

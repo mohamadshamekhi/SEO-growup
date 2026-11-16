@@ -16,6 +16,7 @@
 // watch/kwgap/prices/report/apply/undo/index/articles/recheck) — an unknown kind still
 // records a real `runs` row with status='error' rather than faking success.
 import { autoDiscover } from "../rivals";
+import { measure as measureActions } from "../growth-actions";
 import { run, one } from "../db";
 import { project } from "../projects";
 import { ping } from "../tools";
@@ -99,6 +100,8 @@ async function runJob(job: Job, rid: number | bigint, progress: (done: number, t
       // Python app's own prior runs), not fresh ones from this pull.
       // GA is optional; a GSC-only pull still counts as ok — but keep GA's error visible (Connections page / Sales banner).
       try { await gaPull(p); } catch (e) { gaSaveError(p.id, String((e as Error).message || e)); }
+      // Fresh Search Console numbers: score growth actions published 14+ days ago.
+      try { measureActions(p.id); } catch (e) { console.error("[growth.measure]", e); }
       try {
         // ga.trackingAlerts()/funnel.paidOosAlerts() would normally be sent here too
         // (Telegram, via hub/publisher.py — Phase 5e); logged instead of silently dropped.
