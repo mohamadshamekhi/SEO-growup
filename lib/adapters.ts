@@ -142,7 +142,7 @@ export class Steve implements SiteAdapter {
 
   async apply(fix: ApplyFix): Promise<UndoRecord> {
     const { type: t, url, proposed: val } = fix;
-    if (t === "seo_title" || t === "description" || t === "brand" || t === "cro_description" || t === "oos_links" || (t.startsWith("kw_") && url.includes("/product/"))) {
+    if (t === "seo_title" || t === "description" || t === "brand" || t === "cro_description" || t === "oos_links" || ((t.startsWith("kw_") || t === "meta_description") && url.includes("/product/"))) {
       const p = await this.product(url);
       const pid = (p._id || p.id) as string;
       const curRes = await this.req("GET", `/product/${pid}`);
@@ -158,6 +158,8 @@ export class Steve implements SiteAdapter {
         body = { [field]: val }; before = { [field]: curProduct[field] || "" };
       } else if (t === "seo_title") {
         body = { seo_title: val }; before = { seo_title: p.seo_title || "" };
+      } else if (t === "meta_description") {
+        body = { seo_description: val }; before = { seo_description: curProduct.seo_description || "" };
       } else if (t === "cro_description" || t === "oos_links") {
         if (crypto.createHash("sha256").update(String(p.description || "")).digest("hex") !== fix.base_hash) throw new Error("توضیح محصول بعد از آماده شدن پیشنهاد عوض شده؛ دوباره پیشنهاد بگیرید");
         body = { description: val }; before = { description: p.description || "" };

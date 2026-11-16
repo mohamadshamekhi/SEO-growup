@@ -608,3 +608,14 @@ details[open] > summary .task-why { display: none; }
 .cro-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 10px 0; }
 .cro-compare p { white-space: normal; line-height: 1.8; }
 @media (max-width: 720px) { .cro-compare { grid-template-columns: 1fr; } }
+
+/* issues tab: expandable explanation */
+.guide-row > td { background: var(--surface-2); padding: 14px 18px; }
+.guide { font-size: 13px; line-height: 1.9; color: var(--fg-2); max-width: 820px; }
+.guide dl { margin: 0; display: grid; grid-template-columns: 150px 1fr; gap: 6px 16px; }
+.guide dt { color: var(--fg); font-weight: 600; }
+.guide dd { margin: 0; }
+.guide ol, .guide ul { margin: 0; padding-inline-start: 20px; }
+.guide-urls li { direction: ltr; text-align: left; font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.guide-note { margin: 0 0 12px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--info-soft); color: var(--fg); }
+@media (max-width: 720px) { .guide dl { grid-template-columns: 1fr; } .guide dt { margin-top: 6px; } }
