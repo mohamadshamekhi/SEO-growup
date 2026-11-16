@@ -4,6 +4,7 @@
 // is shared, and the result must differ from it; once one of a pair is rewritten, the other
 // stops being a duplicate too. Duplicate *article* titles (the article's own heading) and every
 // structural/server-side code are refused; the tab shows a full explanation for those instead.
+import crypto from "node:crypto";
 import { catalogRows } from "./catalog";
 import { U } from "./crawl";
 import { now as dbNow, one, q, run } from "./db";
@@ -26,7 +27,7 @@ const DUP = new Set(["duplicate_title", "duplicate_description"]);
 /** Same rule the client uses to decide whether to show the button. Article titles are the
  * article's own heading (not a separate SEO field), so duplicate article titles are never auto-rewritten. */
 export function canAutoFix(code: string, url: string): boolean {
-  if (code === "img_no_alt") return true;
+  if (code === "img_no_alt" || code === "h1_count") return true;
   if (!CODE_TYPE[code]) return false;
   if (code === "duplicate_title" && !url.includes("/product/")) return false;
   return true;
@@ -46,6 +47,7 @@ export async function autoFixIssue(project: ProjectRow, user: string, issueId: n
   if (!issue) return { ok: false, reason: "مشکل پیدا نشد" };
 
   if (issue.code === "img_no_alt") return fixImgAlt(project, user, issue);
+  if (issue.code === "h1_count") return fixExtraH1(project, user, issue);
 
   const type = CODE_TYPE[issue.code];
   if (!type || !canAutoFix(issue.code, issue.url)) {
@@ -118,17 +120,17 @@ export async function autoFixIssue(project: ProjectRow, user: string, issueId: n
 }
 
 /** Writes a ready fix row, approves it, applies it to the site, and closes the issue on success. */
-async function applyNew(project: ProjectRow, user: string, issueId: number, url: string, type: string, current: string, proposed: string, detail: string): Promise<IssueAutoFixResult> {
+async function applyNew(project: ProjectRow, user: string, issueId: number, url: string, type: string, current: string, proposed: string, detail: string, shown?: string, baseHash = ""): Promise<IssueAutoFixResult> {
   const now = dbNow();
   const fixId = Number(run(
-    "INSERT INTO fixes(project_id,url,type,severity,current,proposed,detail,status,created,updated) VALUES (?,?,?,?,?,?,?,'approved',?,?)",
-    project.id, url, type, "info", current, proposed, detail, now, now,
+    "INSERT INTO fixes(project_id,url,type,severity,current,proposed,detail,status,created,updated,base_hash) VALUES (?,?,?,?,?,?,?,'approved',?,?,?)",
+    project.id, url, type, "info", current, proposed, detail, now, now, baseHash,
   ).lastInsertRowid);
   await adapters.applyFixes(project, [fixId], user);
   const after = one<{ status: string; apply_error: string }>("SELECT status, apply_error FROM fixes WHERE id=?", fixId)!;
   if (after.status !== "done") return { ok: false, reason: after.apply_error || "اعمال روی سایت ناموفق بود" };
   run("UPDATE issues SET status='fixed', fixed_at=? WHERE id=?", now, issueId);
-  return { ok: true, applied: true, proposed: type === "article_img_alt" ? Object.values(JSON.parse(proposed) as Record<string, string>).join("، ") : proposed, fixedIds: [issueId] };
+  return { ok: true, applied: true, proposed: shown ?? (type === "article_img_alt" ? Object.values(JSON.parse(proposed) as Record<string, string>).join("، ") : proposed), fixedIds: [issueId] };
 }
 
 /** img_no_alt: product → gallery alts from the product name (only empty ones are filled);
@@ -174,4 +176,35 @@ async function fixImgAlt(project: ProjectRow, user: string, issue: { id: number;
   }
   const map = Object.fromEntries(srcs.map((s, i) => [s, alts[i].trim()]));
   return applyNew(project, user, issue.id, url, "article_img_alt", "", JSON.stringify(map), `${srcs.length} عکس بدون alt در متن مقاله`);
+}
+
+const H1_OPEN = /<h1\b/gi, H1_CLOSE = /<\/h1\s*>/gi;
+const demoteH1 = (html: string) => html.replace(H1_OPEN, "<h2").replace(H1_CLOSE, "</h2>");
+
+/** h1_count: the page template already renders the one real H1 (product name / article title);
+ * extra H1s that come from the editable content (product description, article body) are demoted
+ * to H2. Text and styling stay the same. If the extra H1 is in the template itself, nothing is
+ * written and the caller is pointed to «راه‌حل فنی». */
+async function fixExtraH1(project: ProjectRow, user: string, issue: { id: number; url: string }): Promise<IssueAutoFixResult> {
+  const cfg = adapters.config(project.id);
+  if (!cfg || cfg.type !== "steve") return { ok: false, reason: "رفع خودکار H1 فقط برای سایت متصل استیو پیاده شده است؛ «راه‌حل فنی» را بزنید." };
+  const url = U(issue.url);
+  const site = adapters.client(project.id) as adapters.Steve;
+  const template = "H1 اضافه داخل متن قابل‌ویرایش نیست و از کد قالب صفحه می‌آید؛ «راه‌حل فنی» را بزنید تا دقیق بگوید کجای کد باید عوض شود.";
+  try {
+    if (url.includes("/product/")) {
+      const p = await site.product(url);
+      const desc = String(p.description || "");
+      if (!H1_OPEN.test(desc)) return { ok: false, reason: template };
+      H1_OPEN.lastIndex = 0;
+      return applyNew(project, user, issue.id, url, "description", desc, demoteH1(desc), "H1 داخل توضیح محصول به H2 تبدیل می‌شود", "H1 داخل توضیح محصول به H2 تبدیل شد؛ تیتر اصلی صفحه دست نخورد.");
+    }
+    const art = await site.articleBody(url);
+    if (!H1_OPEN.test(art.body)) return { ok: false, reason: template };
+    H1_OPEN.lastIndex = 0;
+    const hash = crypto.createHash("sha256").update(art.body).digest("hex");
+    return applyNew(project, user, issue.id, url, "kw_refresh", art.body, demoteH1(art.body), "H1 داخل متن مقاله به H2 تبدیل می‌شود", "H1 داخل متن مقاله به H2 تبدیل شد؛ عنوان اصلی مقاله دست نخورد.", hash);
+  } catch (e) {
+    return { ok: false, reason: `صفحه از API سایت خوانده نشد: ${(e as Error).message}` };
+  }
 }

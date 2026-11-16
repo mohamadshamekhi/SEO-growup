@@ -236,3 +236,10 @@ CREATE TABLE IF NOT EXISTS campaigns (
 CREATE INDEX IF NOT EXISTS campaigns_p ON campaigns(project_id, id);
 
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+
+-- Evidence-based technical fix instructions per issue (Issues/Pages tab «راه‌حل فنی»), cached.
+CREATE TABLE IF NOT EXISTS issue_diagnoses (
+  issue_id INTEGER PRIMARY KEY,
+  data TEXT NOT NULL,
+  created REAL NOT NULL
+);

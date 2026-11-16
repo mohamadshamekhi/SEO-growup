@@ -6,6 +6,9 @@ import { GUIDE, COVERAGE } from "./guide";
 import { catalogRows } from "./catalog";
 import { U } from "./crawl";
 import { canAutoFix } from "./issue-autofix";
+import { cachedDiagnosis } from "./issue-diagnose";
+
+const TEXT_ONLY = new Set(["missing_title", "title_length", "missing_description", "description_length", "duplicate_title", "duplicate_description"]);
 
 export type IssueDbRow = { id: number; code: string; severity: string; url: string; detail: string; status: string };
 
@@ -37,6 +40,9 @@ export function enrichIssues(projectId: string, rows: IssueDbRow[]) {
       label: c ? c[1] : r.code,
       fix: c ? c[2] : "",
       canFix: canAutoFix(r.code, r.url) && !viaRedirect,
+      diagnosis: cachedDiagnosis(r.id),
+      // Anything that isn't purely a text field can be (partly) a code/template problem.
+      technical: !TEXT_ONLY.has(r.code),
       guide: g ? { ...g, coverage: r.code === "not_indexed" ? COVERAGE[r.detail] || "" : "", related, viaRedirect } : null,
     };
   });
