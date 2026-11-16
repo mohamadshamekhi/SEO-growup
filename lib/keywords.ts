@@ -151,7 +151,7 @@ function freshDue(pid: string): boolean {
 
 export function nextBatch(proj: ProjectRow): { done: true } | Record<string, unknown> {
   const pid = proj.id;
-  const rows = kwgapAnalyse(proj, 500).rows.filter((r) => r.status !== "other").slice(0, BATCH);
+  const rows = kwgapAnalyse(proj, 500).rows.filter((r) => r.status !== "other" && !r.ignored).slice(0, BATCH);
   const fresh = freshDue(pid) && !!one("SELECT 1 FROM comp_pages WHERE project_id=?", pid);
   if (!rows.length && !fresh) return { done: true };
   const urls = catalogRows(pid);

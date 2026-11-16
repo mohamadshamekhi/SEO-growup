@@ -4,6 +4,7 @@ import { many, one, q, run, getSetting, setSetting } from "./db";
 import { fetchUrl, parsePage, sample as crawlSample } from "./crawl";
 import { catalogRows } from "./catalog";
 import type { ProjectRow } from "./projects";
+import { MARKETPLACE_HOSTS, rejectReason, clusterPhrases, relevance as topicRelevance, vocabulary, score as gapScore, normalize as cleanNorm } from "./kwgap-clean";
 
 const MAX_PAGES = 150;
 const SITE_SECONDS = 900_000; // ms — one slow or enormous site can't hold up the others
@@ -202,6 +203,7 @@ function phrases(text: string): Set<string> {
         if (g.every((x) => GENERIC.has(x) || /^\d+$/.test(x) || EDGE.has(x))) continue;
         if (g.filter((x) => /\d/.test(x)).length > 1) continue;
         if (g.some((x) => /^\d+(gb|tb|mb|mah|hz|w)$/.test(x))) continue; // part numbers
+        if (rejectReason(g.join(" "))) continue; // fragments like «بعدی مناسب», «سی با بهترین»
         out.add(g.join(" "));
       }
     }
@@ -221,12 +223,14 @@ function ownTitles(pid: string): [Set<string>, string, string][] {
 export type GapRow = {
   phrase: string; status: "lead" | "weak" | "no_rank" | "gap" | "other"; score: number; competitors: string[];
   pages: number; example: string; clicks: number; impressions: number; position: number | null; my_url: string | null; my_title: string | null;
+  variants: string[]; relevance: number; ignored?: boolean;
 };
 
 export function analyse(project: ProjectRow, limit = 300) {
   const pid = project.id;
-  const pages = q<{ domain: string; url: string; title: string; h1: string; h2: string; ts: number }>("SELECT * FROM comp_pages WHERE project_id=?", pid);
-  if (!pages.length) return { rows: [] as GapRow[], competitors: [], summary: {}, has_gsc: false, failed: lastFailed(pid) };
+  const pages = q<{ domain: string; url: string; title: string; h1: string; h2: string; ts: number }>("SELECT * FROM comp_pages WHERE project_id=?", pid)
+    .filter((p) => !MARKETPLACE_HOSTS.has(p.domain.replace(/^www\./, ""))); // marketplaces rank for everything; not topical rivals
+  if (!pages.length) return { rows: [] as GapRow[], competitors: [], summary: {} as Record<string, number>, off_topic: 0, ignored_count: 0, has_gsc: false, failed: lastFailed(pid) };
 
   const perHost = new Map<string, number>();
   for (const p of pages) perHost.set(p.domain, (perHost.get(p.domain) || 0) + 1);
@@ -291,34 +295,40 @@ export function analyse(project: ProjectRow, limit = 300) {
     ).map((r) => [new Set(words(r.key)), r])
     : [];
   const own = ownTitles(pid);
-  const field = new Set<string>();
-  for (const [ws] of own) for (const w of ws) field.add(w);
-  for (const [ws] of queries) for (const w of ws) field.add(w);
-  for (const k of (project.keywords as string[]) || []) for (const w of words(k)) field.add(w);
-  for (const x of [...field]) if (/^\d+$/.test(x) || GENERIC.has(x) || EDGE.has(x)) field.delete(x);
 
-  const ignored = new Set<string>(getSetting<string[]>(`kwgap_ignored:${pid}`, []));
+  const ignored = new Set<string>(getSetting<string[]>(`kwgap_ignored:${pid}`, []).map(cleanNorm));
+  const vocab = vocabulary([...own.map(([, , t]) => t), ...queries.map(([, r]) => r.key), ...((project.keywords as string[]) || [])]);
+  const examples = new Map<string, string>();
+  for (const [g, s] of stats) examples.set(cleanNorm(g), [...s.domains.values()][0]);
+  const clusters = clusterPhrases([...stats].map(([g, s]) => ({ phrase: g, competitors: [...s.domains.keys()], pages: s.pages, weight: s.weight })));
   const rows: GapRow[] = [];
-  for (const [g, s] of stats) {
-    if (ignored.has(g)) continue;
-    const need = new Set(g.split(" "));
-    const topic = new Set([...need].filter((x) => !/^\d+$/.test(x) && !GENERIC.has(x) && !EDGE.has(x)));
-    const hits = queries.filter(([ws]) => [...need].every((w) => ws.has(w))).map(([, q]) => q);
-    const impressions = hits.reduce((a, q) => a + q.impressions, 0);
-    const position = impressions ? hits.reduce((a, q) => a + q.position * q.impressions, 0) / impressions : null;
-    const page = own.find(([ws]) => [...need].every((w) => ws.has(w)));
-    const status: GapRow["status"] = position !== null && position <= 10 ? "lead" : position !== null ? "weak" : page ? "no_rank" : 2 * [...topic].filter((t) => field.has(t)).length >= topic.size ? "gap" : "other";
-    const score = Math.round(s.domains.size * 30 + 8 * Math.log2(s.weight + 1) + 3 * Math.log2(impressions + 1));
+  let offTopic = 0;
+  for (const c of clusters) {
+    const rel = topicRelevance(c.phrase, vocab);
+    if (rel === 0) { offTopic++; continue; } // nothing to do with what this site sells or is searched for
+    const wordings = [c.phrase, ...c.variants];
+    const hitSet = new Map<string, { key: string; clicks: number; impressions: number; position: number }>();
+    for (const w of wordings) {
+      const need = new Set(words(w));
+      for (const [ws, qr] of queries) if ([...need].every((x) => ws.has(x))) hitSet.set(qr.key, qr);
+    }
+    const hits = [...hitSet.values()];
+    const impressions = hits.reduce((a, x) => a + x.impressions, 0);
+    const position = impressions ? hits.reduce((a, x) => a + x.position * x.impressions, 0) / impressions : null;
+    const page = own.find(([ws]) => wordings.some((w) => words(w).every((x) => ws.has(x))));
+    const status: GapRow["status"] = position !== null && position <= 10 ? "lead" : position !== null ? "weak" : page ? "no_rank" : rel >= 0.5 ? "gap" : "other";
     rows.push({
-      phrase: g, status, score, competitors: [...s.domains.keys()].sort(), pages: s.pages, example: [...s.domains.values()][0],
-      clicks: hits.reduce((a, q) => a + q.clicks, 0), impressions, position, my_url: page ? page[1] : null, my_title: page ? page[2] : null,
+      phrase: c.phrase, status, score: gapScore(c.competitors.length, c.weight, impressions, rel), competitors: c.competitors, pages: c.pages,
+      example: examples.get(c.phrase) || examples.get(c.variants[0] || "") || "",
+      clicks: hits.reduce((a, x) => a + x.clicks, 0), impressions, position, my_url: page ? page[1] : null, my_title: page ? page[2] : null,
+      variants: c.variants, relevance: Math.round(rel * 100) / 100, ignored: ignored.has(c.phrase) || c.variants.some((v) => ignored.has(v)),
     });
   }
   rows.sort((a, b) => b.score - a.score);
   const summary: Record<string, number> = {};
-  for (const r of rows) summary[r.status] = (summary[r.status] || 0) + 1;
+  for (const r of rows) if (!r.ignored) summary[r.status] = (summary[r.status] || 0) + 1;
   return {
-    rows: rows.slice(0, limit), summary,
+    rows: rows.slice(0, limit), summary, off_topic: offTopic, ignored_count: rows.filter((r) => r.ignored).length,
     competitors: [...perHost.entries()].map(([h, n]) => ({ domain: h, pages: n, read_at: Math.max(...pages.filter((p) => p.domain === h).map((p) => p.ts)) })),
     has_gsc: !!snap, failed: lastFailed(pid),
   };
@@ -326,7 +336,13 @@ export function analyse(project: ProjectRow, limit = 300) {
 
 export function ignore(pid: string, phrase: string) {
   const cur = getSetting<string[]>(`kwgap_ignored:${pid}`, []);
-  setSetting(`kwgap_ignored:${pid}`, [...new Set([...cur, String(phrase).slice(0, 120)])]);
+  setSetting(`kwgap_ignored:${pid}`, [...new Set([...cur, cleanNorm(String(phrase).slice(0, 120))])]);
+}
+
+/** Undo for «نادیده بگیر». */
+export function unignore(pid: string, phrase: string) {
+  const p = cleanNorm(phrase);
+  setSetting(`kwgap_ignored:${pid}`, getSetting<string[]>(`kwgap_ignored:${pid}`, []).filter((x) => cleanNorm(x) !== p));
 }
 
 export function lastFailed(pid: string): Record<string, string> {
