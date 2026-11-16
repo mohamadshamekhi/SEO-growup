@@ -20,7 +20,7 @@ import { run, one } from "../db";
 import { project } from "../projects";
 import { ping } from "../tools";
 import { pull as gscPull } from "../gsc";
-import { pull as gaPull } from "../ga";
+import { pull as gaPull, saveError as gaSaveError } from "../ga";
 import { runSpeed } from "../pagespeed";
 import { audit, saveAudit } from "../crawl";
 import { runKwgap } from "../kwgap";
@@ -97,7 +97,8 @@ async function runJob(job: Job, rid: number | bigint, progress: (done: number, t
       // also runs after a GSC pull are Phase 5e — not run here yet, so policy.watch() below
       // currently only sees whatever `impact`/`experiments` rows already exist (from the
       // Python app's own prior runs), not fresh ones from this pull.
-      try { await gaPull(p); } catch { /* GA is optional; a GSC-only pull still counts as ok */ }
+      // GA is optional; a GSC-only pull still counts as ok — but keep GA's error visible (Connections page / Sales banner).
+      try { await gaPull(p); } catch (e) { gaSaveError(p.id, String((e as Error).message || e)); }
       try {
         // ga.trackingAlerts()/funnel.paidOosAlerts() would normally be sent here too
         // (Telegram, via hub/publisher.py — Phase 5e); logged instead of silently dropped.

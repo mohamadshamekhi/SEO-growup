@@ -29,6 +29,7 @@ const NAV: [string, string, string][] = [
   ["schedule", "زمان‌بندی", "clock"],
 ];
 const ADMIN_NAV: [string, string, string][] = [
+  ["connections", "اتصال‌ها", "link"],
   ["members", "اعضا", "users"],
   ["settings", "تنظیمات", "gear"],
 ];

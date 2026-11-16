@@ -698,3 +698,26 @@ details[open] > summary .task-why { display: none; }
 .chip.bad { background: var(--danger-soft); color: var(--danger); }
 .up { color: var(--accent); }
 .down { color: var(--danger); }
+
+/* connections */
+.conn-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; }
+.conn { display: grid; gap: 6px; align-content: start; }
+.conn p { margin: 0; }
+.conn-head { display: flex; align-items: center; gap: 8px; }
+.conn-head h3 { margin: 0; font-size: 15px; flex: 1; }
+.conn-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); flex: none; }
+.conn-dot.ok { background: var(--accent); }
+.conn-dot.bad { background: var(--danger); }
+.conn-dot.off { background: var(--warn); }
+.conn-detail { color: var(--fg-2); overflow-wrap: anywhere; }
+.conn-result { overflow-wrap: anywhere; }
+.conn-edit { display: grid; gap: 6px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
+.conn-edit input { flex: 1; min-width: 0; }
+@media (max-width: 720px) { .conn-list { grid-template-columns: 1fr; } }
+
+/* sales */
+.sales-tips { margin: 0; padding-inline-start: 20px; display: grid; gap: 12px; }
+.sales-tips p { margin: 4px 0; }
+.prod-actions { margin-top: 4px; }
+.linkish { background: none; border: 0; padding: 4px 0; color: var(--info); cursor: pointer; font: inherit; min-height: 28px; }
+.linkish:hover, .linkish:focus-visible { text-decoration: underline; }

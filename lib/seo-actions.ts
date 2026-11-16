@@ -8,6 +8,7 @@
 // Each action is logged with the position at that moment so the effect shows up on later pulls.
 import { one, q, run, now as dbNow } from "./db";
 import { catalogRows } from "./catalog";
+import { upsertFix } from "./fix-upsert";
 import { U } from "./crawl";
 import { askAI, parseJsonLoose, AIGatewayError } from "./ai";
 import * as adapters from "./adapters";
@@ -144,11 +145,7 @@ function findRow(project: ProjectRow, query: string): QueryRow {
 }
 
 async function applyFix(project: ProjectRow, user: string, url: string, type: string, current: string, proposed: string, detail: string) {
-  const t = dbNow();
-  const fixId = Number(run(
-    "INSERT INTO fixes(project_id,url,type,severity,current,proposed,detail,status,created,updated) VALUES (?,?,?,?,?,?,?,'approved',?,?)",
-    project.id, url, type, "info", current, proposed, detail, t, t,
-  ).lastInsertRowid);
+  const fixId = upsertFix(project.id, url, type, current, proposed, detail, "approved");
   await adapters.applyFixes(project, [fixId], user);
   const after = one<{ status: string; apply_error: string }>("SELECT status, apply_error FROM fixes WHERE id=?", fixId)!;
   if (after.status !== "done") throw new Error(after.apply_error || "اعمال روی سایت ناموفق بود");

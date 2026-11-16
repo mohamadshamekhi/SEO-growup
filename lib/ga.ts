@@ -199,3 +199,24 @@ export function purchasesFor(pid: string, url: string): number {
   const path = decodeURIComponent(new URL(url).pathname).replace(/\/$/, "") || "/";
   return pages[path]?.purchases ?? 0;
 }
+
+/** Connections page test: one tiny report on the saved property, with the real Google error if any. */
+export async function testGa(pid: string): Promise<{ ok: boolean; message: string }> {
+  const prop = getProperty(pid);
+  if (!prop) return { ok: false, message: "شناسه property گوگل آنالیتیکس وارد نشده." };
+  try {
+    const d = await report(prop, { dateRanges: [{ startDate: "7daysAgo", endDate: "yesterday" }], metrics: [{ name: "sessions" }] });
+    const sessions = Number(d.rows?.[0]?.metricValues?.[0]?.value || 0);
+    return { ok: true, message: `وصل است؛ ${sessions} بازدید (session) در ۷ روز گذشته.` };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+export function lastError(pid: string): string {
+  return getSetting(`ga_error:${pid}`, "");
+}
+
+export function saveError(pid: string, message: string) {
+  setSetting(`ga_error:${pid}`, message.slice(0, 400));
+}

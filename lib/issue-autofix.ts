@@ -6,6 +6,7 @@
 // structural/server-side code are refused; the tab shows a full explanation for those instead.
 import crypto from "node:crypto";
 import { catalogRows } from "./catalog";
+import { upsertFix } from "./fix-upsert";
 import { U } from "./crawl";
 import { now as dbNow, one, q, run } from "./db";
 import { askAI, AIGatewayError } from "./ai";
@@ -74,12 +75,7 @@ export async function autoFixIssue(project: ProjectRow, user: string, issueId: n
   );
   let fixId: number;
   if (!fix) {
-    fixId = Number(
-      run(
-        "INSERT INTO fixes(project_id,url,type,severity,current,proposed,detail,status,created,updated) VALUES (?,?,?,?,?,?,?,'pending',?,?)",
-        project.id, url, type, "warning", current, "", detail, now, now,
-      ).lastInsertRowid,
-    );
+    fixId = upsertFix(project.id, url, type, current, "", detail, "pending");
   } else {
     fixId = fix.id;
     if (dup) run("UPDATE fixes SET detail=?, current=?, proposed='', updated=? WHERE id=?", detail, current, now, fixId);
@@ -122,10 +118,7 @@ export async function autoFixIssue(project: ProjectRow, user: string, issueId: n
 /** Writes a ready fix row, approves it, applies it to the site, and closes the issue on success. */
 async function applyNew(project: ProjectRow, user: string, issueId: number, url: string, type: string, current: string, proposed: string, detail: string, shown?: string, baseHash = ""): Promise<IssueAutoFixResult> {
   const now = dbNow();
-  const fixId = Number(run(
-    "INSERT INTO fixes(project_id,url,type,severity,current,proposed,detail,status,created,updated,base_hash) VALUES (?,?,?,?,?,?,?,'approved',?,?,?)",
-    project.id, url, type, "info", current, proposed, detail, now, now, baseHash,
-  ).lastInsertRowid);
+  const fixId = upsertFix(project.id, url, type, current, proposed, detail, "approved", baseHash);
   await adapters.applyFixes(project, [fixId], user);
   const after = one<{ status: string; apply_error: string }>("SELECT status, apply_error FROM fixes WHERE id=?", fixId)!;
   if (after.status !== "done") return { ok: false, reason: after.apply_error || "اعمال روی سایت ناموفق بود" };

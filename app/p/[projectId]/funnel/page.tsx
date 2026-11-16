@@ -9,6 +9,12 @@ import { impactSummary } from "@/lib/growth";
 import { rows as priceRows } from "@/lib/prices";
 import { faNum } from "@/lib/intl/fa";
 import { MarginSelect } from "./margin-select";
+import { ProductActions, SalesTips } from "./sales-actions";
+import { productAdvice, salesTips } from "@/lib/sales-actions";
+import { lastError as gaLastError } from "@/lib/ga";
+import { currentUser } from "@/lib/server/current-user";
+import { role } from "@/lib/auth";
+import Link from "next/link";
 import { PriceForm } from "./price-form";
 import { PriceRemoveButton } from "./price-remove-button";
 
@@ -46,12 +52,21 @@ export default async function FunnelTab({ params }: { params: Promise<{ projectI
   const ch = channels(pid);
   const track = tracking(pid);
   const prices = priceRows(pid);
+  const advice = productAdvice(p);
+  const tips = salesTips(p);
+  const gaErr = gaLastError(pid);
+  const user = await currentUser();
+  const r0 = user ? role(user, pid) : null;
+  const canEdit = r0 === "admin" || r0 === "editor";
+  const croTargets = allRows.filter((r) => r.clicks > 0 && r.units === 0 && advice[r.url]?.canCro).sort((a, b) => b.clicks - a.clicks).map((r) => ({ url: r.url, name: r.name }));
 
   return (
     <div>
       <div className="page-head"><div className="head-title"><h1>فروش</h1></div></div>
 
-      {!gaProperty && <div className="banner warn"><span className="grow">Analytics وصل نیست، پس بازدید و سبد خرید اینجا خالی است و تشخیص‌ها فقط از کلیک گوگل و فروش می‌آیند.</span></div>}
+      {!gaProperty && <div className="banner warn"><span className="grow">شناسه property گوگل آنالیتیکس وارد نشده، پس بازدید و سبد خرید اینجا خالی است و تشخیص‌ها فقط از کلیک گوگل و فروش می‌آیند.</span><Link className="btn sm" href={`/p/${pid}/connections`}>وارد کردن در اتصال‌ها</Link></div>}
+      {gaProperty && gaErr && <div className="banner warn"><span className="grow">Analytics خطا می‌دهد: {gaErr}</span><Link className="btn sm" href={`/p/${pid}/connections`}>تست اتصال</Link></div>}
+      <SalesTips projectId={pid} tips={tips} croTargets={croTargets} canEdit={canEdit} />
       {gaProperty && gaConnected && !gaCarts && <div className="banner warn"><span className="grow">Analytics وصل است ولی رویداد «افزودن به سبد» نمی‌رسد.</span></div>}
       {paid.length > 0 && <div className="banner warn"><span className="grow">{faNum(paid.length)} محصول ناموجود در ۲۸ روز گذشته {faNum(paid.reduce((a, r) => a + r.sessions, 0))} نشست پولی گرفته است.</span></div>}
 
@@ -67,6 +82,7 @@ export default async function FunnelTab({ params }: { params: Promise<{ projectI
                     <td style={{ whiteSpace: "normal", minWidth: 240 }}>
                       <a href={r.url} target="_blank" rel="noopener noreferrer">{r.name}</a>
                       {r.stage && <><div className="small"><strong>{r.stage_label}</strong></div><div className="muted small">{r.advice}</div></>}
+                      {advice[r.url] && <ProductActions projectId={pid} name={r.name} advice={advice[r.url]} canEdit={canEdit} />}
                     </td>
                     <td>{r.available == null ? <span className="muted">نامعلوم</span> : r.available ? <span className="chip ok">موجود</span> : <span className="chip danger">ناموجود</span>}</td>
                     <td className="num">{n(r.views)}</td>
