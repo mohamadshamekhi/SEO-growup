@@ -250,3 +250,9 @@ CREATE TABLE IF NOT EXISTS campaign_plans (
   data TEXT NOT NULL,
   created REAL NOT NULL
 );
+
+-- Watches the panel created by itself (one per important page). blocked=1: the owner deleted it, never recreate.
+CREATE TABLE IF NOT EXISTS watch_auto (
+  project_id TEXT, mine TEXT, watch_id INTEGER, blocked INTEGER DEFAULT 0, reasons TEXT DEFAULT '{}',
+  PRIMARY KEY(project_id, mine)
+);

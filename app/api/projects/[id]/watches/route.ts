@@ -3,6 +3,7 @@ import { requireProjectAccess } from "@/lib/access";
 import { q } from "@/lib/db";
 import { addWatch } from "@/lib/extras";
 import { logActivity } from "@/lib/activity";
+import { deleteWatch } from "@/lib/rivals";
 
 export const dynamic = "force-dynamic";
 
@@ -30,5 +31,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ id });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id: pid } = await params;
+  const gate = requireProjectAccess(req, pid, "admin");
+  if ("response" in gate) return gate.response;
+  try {
+    deleteWatch(pid, Number(req.nextUrl.searchParams.get("wid")));
+    logActivity(pid, gate.user.name, "DELETE", req.nextUrl.pathname);
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 404 });
   }
 }

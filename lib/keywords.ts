@@ -18,7 +18,7 @@ import { purchasesFor } from "./ga";
 import { GUIDE } from "./guide";
 import { CHECKS } from "./checks";
 
-function flag<T>(pid: string, name: string, fallback: T): T {
+export function flag<T>(pid: string, name: string, fallback: T): T {
   return getSetting(`kw_${name}:${pid}`, fallback);
 }
 
@@ -97,7 +97,7 @@ export function decaying(pid: string, limit = 20): DecayingRow[] {
 
 const BATCH = 40, MAX_IDEAS = 5, MAX_TASKS = 5;
 // They sell everything, so their pages say little about a specialist shop, and their sitemaps run to millions of addresses.
-const MARKETPLACES = new Set(["digikala.com", "torob.com", "emalls.ir", "divar.ir", "sheypoor.com", "basalam.com", "snappshop.ir", "timcheh.com", "wikipedia.org", "instagram.com", "aparat.com", "youtube.com"]);
+export const MARKETPLACES = new Set(["digikala.com", "torob.com", "emalls.ir", "divar.ir", "sheypoor.com", "basalam.com", "snappshop.ir", "timcheh.com", "wikipedia.org", "instagram.com", "aparat.com", "youtube.com"]);
 const ACTIONS = ["article", "optimize", "track", "reject"] as const;
 type Action = (typeof ACTIONS)[number];
 const RULES = `هر عبارت را بررسی کن. این عبارت‌ها خودکار از عنوان صفحات رقبا درآمده‌اند و خیلی‌هایشان بی‌ارزش‌اند؛ سخت‌گیر باش.

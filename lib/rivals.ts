@@ -5,11 +5,13 @@
 //  3. pages read from configured competitor sites (comp_pages / comp_seen) whose title/headings/slug
 //     overlap this page's topic.
 // Every suggestion carries the reason it was picked; nothing is invented.
-import { one, q } from "./db";
+import { one, q, run } from "./db";
 import { catalogRows } from "./catalog";
 import { U } from "./crawl";
 import { words, domains } from "./kwgap";
-import type { ProjectRow } from "./projects";
+import { flag, MARKETPLACES, setCompetitors, userEdited } from "./keywords";
+import { addWatch } from "./extras";
+import { project as getProject, type ProjectRow } from "./projects";
 
 export type Rival = { url: string; title: string; domain: string; score: number; reasons: string[] };
 export type RivalResult = { rivals: Rival[]; queries: string[]; notes: string[] };
@@ -93,4 +95,122 @@ export function findRivals(project: ProjectRow, pageUrl: string): RivalResult {
   const rivals = [...found.values()].sort((a, b) => b.score - a.score).filter((r) => (perSite[r.domain] = (perSite[r.domain] || 0) + 1) <= 2).slice(0, 8);
   if (!rivals.length && !serpHits) notes.push("با داده فعلی رقیبی پیدا نشد.");
   return { rivals: rivals.map((r) => ({ ...r, score: Math.round(r.score * 10) / 10 })), queries: queries.slice(0, 8), notes };
+}
+
+// ---------- competitor sites (whole store) ----------
+export type RivalSite = { domain: string; keywords: number; avgRank: number; score: number; sample: string[]; current: boolean };
+
+/** Sites that most often rank next to us on Google across all tracked keywords (saved results only). */
+export function rivalSites(project: ProjectRow): { sites: RivalSite[]; current: string[]; notes: string[] } {
+  const pid = project.id;
+  const own = project.domain.toLowerCase().replace(/^www\./, "");
+  const current = domains(project);
+  const blocked = new Set(flag<string[]>(pid, "blocked", []));
+  const latest = new Map<string, { url: string }[]>();
+  for (const r of q<{ keyword: string; results: string }>("SELECT keyword, results FROM serp WHERE project_id=? ORDER BY checked DESC LIMIT 2000", pid)) {
+    if (!latest.has(r.keyword)) latest.set(r.keyword, JSON.parse(r.results));
+  }
+  const imp = new Map<string, number>();
+  const snap = one<{ s: number | null }>("SELECT MAX(snap) s FROM gsc_snap WHERE project_id=? AND dim='query'", pid)?.s;
+  if (snap) for (const r of q<{ key: string; impressions: number }>("SELECT key, impressions FROM gsc_snap WHERE project_id=? AND snap=? AND dim='query'", pid, snap)) imp.set(r.key, r.impressions);
+
+  const agg = new Map<string, { kws: Set<string>; ranks: number[]; score: number }>();
+  for (const [kw, results] of latest) {
+    const seen = new Set<string>();
+    results.slice(0, 10).forEach((res, i) => {
+      const d = host(res.url);
+      if (!d || d === own || seen.has(d) || MARKETPLACES.has(d) || blocked.has(d)) return;
+      seen.add(d);
+      const a = agg.get(d) || { kws: new Set<string>(), ranks: [], score: 0 };
+      a.kws.add(kw); a.ranks.push(i + 1);
+      a.score += (11 - (i + 1)) * (1 + Math.log10(1 + (imp.get(kw) || 0)));
+      agg.set(d, a);
+    });
+  }
+  const notes: string[] = [];
+  if (!latest.size) notes.push("نتایج گوگل هنوز ذخیره نشده؛ بعد از اولین اجرای «رتبه‌ها» در زمان‌بندی، رقبا پیدا می‌شوند.");
+  const sites = [...agg.entries()]
+    .filter(([, a]) => a.kws.size >= 2)
+    .map(([domain, a]) => ({
+      domain, keywords: a.kws.size, avgRank: Math.round((a.ranks.reduce((x, y) => x + y, 0) / a.ranks.length) * 10) / 10,
+      score: Math.round(a.score), sample: [...a.kws].slice(0, 4), current: current.includes(domain),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 15);
+  return { sites, current, notes };
+}
+
+// ---------- automatic discovery ----------
+const AUTO_PAGES = 20, AUTO_RIVALS = 3;
+
+/** Important pages first: most Google impressions (Search Console), else the catalog. */
+function importantPages(project: ProjectRow): string[] {
+  const own = project.domain.toLowerCase().replace(/^www\./, "");
+  const snap = one<{ s: number | null }>("SELECT MAX(snap) s FROM gsc_snap WHERE project_id=? AND dim='page'", project.id)?.s;
+  const fromGsc = snap
+    ? q<{ key: string }>("SELECT key FROM gsc_snap WHERE project_id=? AND snap=? AND dim='page' ORDER BY impressions DESC LIMIT 60", project.id, snap).map((r) => r.key)
+    : [];
+  const pages = (fromGsc.length ? fromGsc : catalogRows(project.id).map((c) => c.url))
+    .filter((u) => host(u) === own && new URL(u).pathname.length > 1);
+  return [...new Set(pages)].slice(0, AUTO_PAGES);
+}
+
+/**
+ * Runs before every watch check (and from the «پیدا کردن خودکار» button):
+ * 1. if the competitor list was never set by hand, fills it with the top rival sites;
+ * 2. gives each important page a watch with its best rival pages. Watches the owner added
+ *    stay untouched; auto ones get their rivals refreshed; a deleted auto watch never returns.
+ */
+export async function autoDiscover(project: ProjectRow): Promise<{ sites: string[]; created: number; updated: number }> {
+  const pid = project.id;
+  let sites = domains(project);
+  if (!sites.length || flag<boolean>(pid, "auto", true)) {
+    const top = rivalSites(project).sites.map((s) => s.domain);
+    if (top.length) { try { sites = setCompetitors(project, top).competitors; } catch { /* nothing valid */ } }
+  }
+
+  const fresh = getProject(pid) || project;
+  const manual = new Set(q<{ mine: string; id: number }>("SELECT mine, id FROM watches WHERE project_id=?", pid)
+    .filter((w) => !one("SELECT 1 FROM watch_auto WHERE project_id=? AND watch_id=?", pid, w.id))
+    .map((w) => U(w.mine)));
+  let created = 0, updated = 0;
+  for (const page of importantPages(fresh)) {
+    const key = U(page);
+    if (manual.has(key)) continue;
+    const meta = one<{ watch_id: number; blocked: number }>("SELECT watch_id, blocked FROM watch_auto WHERE project_id=? AND mine=?", pid, key);
+    if (meta?.blocked) continue;
+    const picks = findRivals(fresh, page).rivals.slice(0, AUTO_RIVALS);
+    if (!picks.length) continue;
+    const others = picks.map((r) => r.url);
+    const reasons = JSON.stringify(Object.fromEntries(picks.map((r) => [r.url, r.reasons])));
+    if (meta && one("SELECT 1 FROM watches WHERE id=?", meta.watch_id)) {
+      run("UPDATE watches SET others=? WHERE id=?", JSON.stringify(others), meta.watch_id);
+      run("UPDATE watch_auto SET reasons=? WHERE project_id=? AND mine=?", reasons, pid, key);
+      updated++;
+      continue;
+    }
+    try {
+      const id = Number(await addWatch(pid, page, others));
+      run("INSERT OR REPLACE INTO watch_auto(project_id, mine, watch_id, blocked, reasons) VALUES (?,?,?,0,?)", pid, key, id, reasons);
+      created++;
+    } catch { /* a URL that fails the public-address check is just skipped */ }
+  }
+  return { sites, created, updated };
+}
+
+/** The owner deleted a watch: drop it; if the panel made it, remember not to make it again. */
+export function deleteWatch(pid: string, watchId: number) {
+  const w = one<{ mine: string }>("SELECT mine FROM watches WHERE id=? AND project_id=?", watchId, pid);
+  if (!w) throw new Error("پیدا نشد");
+  run("DELETE FROM watches WHERE id=?", watchId);
+  run("UPDATE watch_auto SET blocked=1 WHERE project_id=? AND mine=?", pid, U(w.mine));
+}
+
+/** The owner edits the competitor-site list by hand. */
+export function setRivalSites(project: ProjectRow, list: string[]) {
+  const old = (project.competitors as string[]) || [];
+  const after = [...new Set(list.map((x) => String(x).trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "")).filter(Boolean))].slice(0, 5);
+  run("UPDATE projects SET competitors=? WHERE id=?", JSON.stringify(after), project.id);
+  userEdited(project.id, old, after);
+  return domains({ ...project, competitors: after } as ProjectRow);
 }

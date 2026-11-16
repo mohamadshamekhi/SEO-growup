@@ -15,6 +15,7 @@
 // Every job kind dispatches to a real, ported module now (uptime/audit/catalog/gsc/speed/
 // watch/kwgap/prices/report/apply/undo/index/articles/recheck) — an unknown kind still
 // records a real `runs` row with status='error' rather than faking success.
+import { autoDiscover } from "../rivals";
 import { run, one } from "../db";
 import { project } from "../projects";
 import { ping } from "../tools";
@@ -219,7 +220,10 @@ async function runJob(job: Job, rid: number | bigint, progress: (done: number, t
     const p = project(job.project);
     if (!p) return { status: "error", error: "پروژه پیدا نشد" };
     try {
-      const r = await runWatches(p, progress);
+      // Find rival sites/pages first so new important pages get watched without anyone adding them.
+      let auto: Awaited<ReturnType<typeof autoDiscover>> | null = null;
+      try { auto = await autoDiscover(p); } catch (e) { console.error("[watch.autoDiscover]", e); }
+      const r = { ...(await runWatches(p, progress)), auto };
       return { status: "ok", summary: r };
     } catch (e) {
       return { status: "error", error: String((e as Error).message || e).slice(0, 500) };
