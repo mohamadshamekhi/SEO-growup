@@ -37,6 +37,9 @@ jobs:
           context: .
           push: false
           tags: growth-hub-next:ci
+          # runner گیت‌هاب خارج از ایران است و به آینه‌ی آروان دسترسی ندارد؛ از deb.debian.org استفاده کن
+          build-args: |
+            APT_MIRROR=
           cache-from: type=gha,scope=hub-next
           cache-to: type=gha,mode=max,scope=hub-next
 
