@@ -12,8 +12,9 @@ import { googleFetch } from "./google-proxy";
 import { fetchUrl } from "./crawl";
 import { formatJalaliDateTime } from "./intl/jalali";
 import type { ProjectRow } from "./projects";
+import { indexNowKey, indexNowReady, submitSitemap } from "./indexing-auto";
 
-export type ConnName = "site" | "site_api" | "google_key" | "gsc" | "ga" | "ai" | "telegram" | "pagespeed";
+export type ConnName = "site" | "site_api" | "google_key" | "gsc" | "gsc_write" | "indexnow" | "ga" | "ai" | "telegram" | "pagespeed";
 export type Conn = {
   name: ConnName; title: string; purpose: string; configured: boolean; detail: string;
   lastError: string; where: string; editable?: "gsc" | "ga";
@@ -42,6 +43,11 @@ export function list(p: ProjectRow): Conn[] {
     { name: "gsc", title: "Google Search Console", purpose: "کلمه‌ها، جایگاه، صفحه‌های ایندکس‌نشده و همه فرصت‌های سئو.", configured: keyOk,
       detail: `${p.gsc_property || "property خودکار از دامنه"}${gscRun ? ` · آخرین دریافت ${when(gscRun.started_at)} (${gscRun.status === "ok" ? "موفق" : "ناموفق"})` : " · هنوز دریافت نشده"}`,
       lastError: gscRun && gscRun.status !== "ok" ? gscRun.error || "" : "", where: "", editable: "gsc" },
+    { name: "gsc_write", title: "ثبت خودکار sitemap در گوگل", purpose: "هر روز بعد از بررسی ایندکس، اگر sitemap عوض شده باشد دوباره برای گوگل ثبت می‌شود.", configured: keyOk && !!p.gsc_property,
+      detail: (() => { const s = getSetting<{ at?: number }>(`sitemap_submit:${p.id}`, {}); return s.at ? `آخرین ثبت ${when(s.at)}` : "هنوز ثبت نشده"; })(),
+      lastError: "", where: "ایمیل Service Account باید در Search Console ← Settings ← Users and permissions نقش Full داشته باشد." },
+    { name: "indexnow", title: "IndexNow (Bing، Yandex و…)", purpose: "آدرس‌های تازه و تغییرکرده هر روز به موتورهای جستجوی غیر گوگل خبر داده می‌شود.", configured: true,
+      detail: `فایل کلید لازم: https://${p.domain}/${indexNowKey(p.id)}.txt با محتوای «${indexNowKey(p.id)}»`, lastError: "", where: "" },
     { name: "ga", title: "Google Analytics 4", purpose: "بازدید، افزودن به سبد و فروش هر صفحه؛ بدون آن تب فروش فقط کلیک گوگل را می‌بیند.", configured: keyOk && !!gaProp,
       detail: gaProp ? `property ${gaProp}${gaState.at ? ` · آخرین دریافت ${when(gaState.at)}` : " · هنوز دریافت نشده"}` : "شناسه property وارد نشده",
       lastError: ga.lastError(p.id), where: "", editable: "ga" },
@@ -78,6 +84,11 @@ export async function test(p: ProjectRow, name: ConnName): Promise<TestResult> {
         if (r.ok) return done(true, `وصل است؛ property: ${r.property}`);
         const avail = r.available?.length ? ` property های قابل‌دسترس: ${r.available.join("، ")}` : "";
         return done(false, `${r.error || "ناموفق"}${avail}`);
+      }
+      case "gsc_write": return done(true, await submitSitemap(p, true));
+      case "indexnow": {
+        const r = await indexNowReady(p);
+        return done(r.ok, r.ok ? "فایل کلید روی سایت هست؛ ارسال‌ها پذیرفته می‌شوند." : `فایل ${r.keyUrl} روی سایت نیست یا محتوایش «${r.key}» نیست.`);
       }
       case "ga": {
         const r = await ga.testGa(p.id);

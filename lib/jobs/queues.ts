@@ -16,6 +16,7 @@
 // watch/kwgap/prices/report/apply/undo/index/articles/recheck) — an unknown kind still
 // records a real `runs` row with status='error' rather than faking success.
 import { autoDiscover } from "../rivals";
+import { afterIndexCheck } from "../indexing-auto";
 import { measure as measureActions } from "../growth-actions";
 import { run, one } from "../db";
 import { project } from "../projects";
@@ -215,7 +216,9 @@ async function runJob(job: Job, rid: number | bigint, progress: (done: number, t
     if (!p) return { status: "error", error: "پروژه پیدا نشد" };
     try {
       const r = await runIndex(p, progress, !!job.only_open);
-      return { status: "ok", summary: r };
+      // Then: resubmit sitemap if changed, IndexNow for changed URLs, Telegram not-indexed report.
+      const auto = job.only_open ? [] : await afterIndexCheck(p);
+      return { status: "ok", summary: { ...r, auto } };
     } catch (e) {
       return { status: "error", error: String((e as Error).message || e).slice(0, 500) };
     }

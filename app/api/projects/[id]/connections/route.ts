@@ -7,7 +7,7 @@ import { run } from "@/lib/db";
 import { logActivity } from "@/lib/activity";
 
 export const dynamic = "force-dynamic";
-const NAMES: ConnName[] = ["site", "site_api", "google_key", "gsc", "ga", "ai", "telegram", "pagespeed"];
+const NAMES: ConnName[] = ["site", "site_api", "google_key", "gsc", "gsc_write", "indexnow", "ga", "ai", "telegram", "pagespeed"];
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: pid } = await params;
