@@ -11,13 +11,26 @@ const DATA_DIR = process.env.HUB_DATA || path.join(process.cwd(), "data");
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const DB_PATH = path.join(DATA_DIR, "hub.db");
 
-const db = new Database(DB_PATH);
-db.pragma("busy_timeout = 5000"); // Next's build-time page-data collection runs several
-// worker processes in parallel, each importing this module against the same (throwaway,
-// build-local) db file — without a timeout, two workers racing to set journal_mode=WAL on
-// the same file can hit SQLITE_BUSY immediately instead of just waiting their turn.
-db.pragma("journal_mode = WAL");
+// `next build` collects page data in several worker processes at once, and every route that
+// imports this module opens the db. Switching to WAL needs an exclusive lock that busy_timeout
+// does not wait for, so parallel workers hit SQLITE_BUSY and the build fails. During the build
+// nothing real is read or written, so each worker gets its own in-memory db instead.
+const BUILDING = process.env.NEXT_PHASE === "phase-production-build" || process.env.npm_lifecycle_event === "build";
+const db = new Database(BUILDING ? ":memory:" : DB_PATH);
+db.pragma("busy_timeout = 5000");
+if (!BUILDING) setWal();
 db.pragma("foreign_keys = ON");
+
+/** WAL with a short retry loop: another process (a second server, a backup) may hold the lock for a moment. */
+function setWal() {
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  for (let i = 0; ; i++) {
+    try { db.pragma("journal_mode = WAL"); return; } catch (e) {
+      if ((e as { code?: string }).code !== "SQLITE_BUSY" || i >= 20) throw e;
+      Atomics.wait(pause, 0, 0, 250); // synchronous sleep; module init can't await
+    }
+  }
+}
 
 export function q<T = Record<string, unknown>>(sql: string, ...params: unknown[]): T[] {
   return db.prepare(sql).all(...params) as T[];
