@@ -13,7 +13,7 @@ type ActivityRow = { user_name: string; action: string; ts: number };
 const LABEL: Record<string, string> = {
   uptime: "آپتایم", audit: "ممیزی فنی", articles: "لیست مقالات", catalog: "کاتالوگ محصولات",
   gsc: "Search Console", index: "وضعیت ایندکس", speed: "سرعت صفحات", watch: "پایش رقیب",
-  kwgap: "شکاف کلمات با رقیب", prices: "قیمت رقبا", report: "گزارش هفتگی",
+  kwgap: "شکاف کلمات با رقیب", prices: "قیمت رقبا", report: "گزارش هفتگی", content: "تولید محتوا (زمان‌بندی‌شده)",
   write_content: "نوشتن محتوا با هوش مصنوعی", write_fixes: "پیشنهاد اصلاح متنی با هوش مصنوعی",
   apply: "اعمال اصلاح روی سایت", undo: "برگرداندن تغییر سایت",
 };

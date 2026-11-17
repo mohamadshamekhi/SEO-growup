@@ -190,7 +190,7 @@ export async function pushDraft(project: ProjectRow, c: ContentRow): Promise<str
 
 /** One pass over everything waiting. Called every minute; each failure is retried a few times, then left visible in the panel.
  * Named processQueue, not process (hub/publisher.py's name) — process is Node's global object and a same-scope export named `process` would shadow it. */
-export async function processQueue(project: ProjectRow): Promise<{ drafted: number; messages: number }> {
+export async function processQueue(project: ProjectRow, maxMessages = 6): Promise<{ drafted: number; messages: number }> {
   const pid = project.id;
   const cfg = getPublish(pid);
   const done = { drafted: 0, messages: 0 };
@@ -216,6 +216,7 @@ export async function processQueue(project: ProjectRow): Promise<{ drafted: numb
       }
       saveContent(c);
     }
+    if (done.messages >= maxMessages) continue; // team group gets at most a handful per run; the rest go next run
     if (!cfg.telegram || !tgConfig(pid) || o.tg_sent || ((o.tg_tries as number) || 0) >= MAX_TRIES) continue;
     if (c.kind === "article" && !o.body_html) continue;
     if (c.kind === "ig_post" && !o.caption) continue;

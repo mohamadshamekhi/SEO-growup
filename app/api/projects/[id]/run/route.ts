@@ -10,7 +10,7 @@ import { logActivity } from "@/lib/activity";
 import { keyInfo } from "@/lib/google-auth";
 import type { JobKey } from "@/lib/schedule";
 
-const JOB_KINDS = new Set(["audit", "gsc", "catalog", "speed", "index", "watch", "articles", "kwgap", "prices", "report"]);
+const JOB_KINDS = new Set(["audit", "gsc", "catalog", "speed", "index", "watch", "articles", "kwgap", "prices", "report", "content"]);
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: pid } = await params;

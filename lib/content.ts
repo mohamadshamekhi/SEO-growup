@@ -209,6 +209,12 @@ export function planWeek(proj: ProjectRow): (number | bigint)[] {
   return ids;
 }
 
+/** Has next week's Instagram plan been made already? (any ig_post dated on/after next Saturday) */
+export function weekPlanned(pid: string): boolean {
+  const from = isoDate(nextSaturday());
+  return listing(pid, "ig_post").some((c) => String(c.brief.date || "") >= from);
+}
+
 // ---------- writing agent: same steps locally and from a remote machine ----------
 const WRITABLE_FIXES = ["seo_title", "meta_description", "description"];
 

@@ -7,7 +7,7 @@ import type { ProjectRow } from "./projects";
 
 export const TEHRAN_OFFSET_MIN = 3 * 60 + 30;
 
-export type JobKey = "uptime" | "audit" | "articles" | "catalog" | "gsc" | "index" | "speed" | "watch" | "kwgap" | "prices" | "report";
+export type JobKey = "uptime" | "audit" | "articles" | "catalog" | "gsc" | "index" | "speed" | "watch" | "kwgap" | "prices" | "report" | "content";
 
 // key: [label, about, default hours, minimum hours, on by default]
 export const JOBS: Record<JobKey, [label: string, about: string, hours: number, minHours: number, onByDefault: boolean]> = {
@@ -22,6 +22,7 @@ export const JOBS: Record<JobKey, [label: string, about: string, hours: number, 
   kwgap: ["مدیریت کلمات", "پیدا کردن رقبا، تحلیل کلمات و ساخت ایده و کار", 168, 24, true],
   prices: ["قیمت رقبا در ترب", "خواندن صفحه محصول ترب برای لینک‌هایی که داده‌اید", 168, 24, true],
   report: ["گزارش هفتگی", "ساخت گزارش و مقایسه با دوره قبل", 168, 24, true],
+  content: ["تولید محتوا", "برنامه هفته اینستاگرام، نوشتن مقاله‌ها و پست‌های در صف با هوش مصنوعی، ثبت پیش‌نویس مقاله (منتشرنشده) روی سایت و ارسال کار امروز به تلگرام", 24, 6, true],
 };
 
 const LEGACY: Partial<Record<JobKey, string>> = { uptime: "uptime", audit: "auto_audit", catalog: "auto_catalog", gsc: "auto_gsc", index: "auto_index", speed: "auto_speed", report: "weekly_report" };
@@ -45,7 +46,8 @@ export function get(project: ProjectRow): Record<JobKey, JobConfig> {
     out[key] = {
       on: cur.on ?? (typeof legacyOn === "boolean" ? legacyOn : onDefault),
       hours: Number(cur.hours || legacyHours[key] || hours),
-      at: cur.at ?? null,
+      // Content runs at 9:00 Tehran by default so the team gets its day's tasks in the morning.
+      at: cur.at !== undefined ? cur.at : key === "content" ? 9 : null,
     };
   }
   return out;

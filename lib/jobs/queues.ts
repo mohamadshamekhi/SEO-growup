@@ -31,7 +31,8 @@ import { runCatalog } from "../catalog";
 import { undoBatch, watch as policyWatch } from "../policy";
 import { dropFailed, track as trackKeywords } from "../keywords";
 import { check as checkPrices } from "../prices";
-import { autoWrite, autoWriteFixes } from "../content";
+import { autoWrite, autoWriteFixes, planWeek, weekPlanned } from "../content";
+import { processQueue } from "../publisher";
 import { runIndex, runWatches, runReport } from "../extras";
 import { syncArticles, refreshIdeas } from "../planner";
 
@@ -64,7 +65,7 @@ const lanes = shared.lanes;
 const HISTORY_MAX = 30;
 
 function laneFor(kind: string): Lane {
-  if (kind === "apply" || kind === "undo" || kind === "write_content" || kind === "write_fixes") return "writeJobs";
+  if (kind === "apply" || kind === "undo" || kind === "write_content" || kind === "write_fixes" || kind === "content") return "writeJobs";
   if (kind === "kwgap") return "readJobs";
   return "jobs";
 }
@@ -169,6 +170,27 @@ async function runJob(job: Job, rid: number | bigint, progress: (done: number, t
       return { status: "ok", summary: r };
     } catch (e) {
       return { status: "error", error: String((e as Error).message || e).slice(0, 500) };
+    }
+  }
+  if (job.kind === "content") {
+    // Scheduled content pipeline: plan next week's posts once (from Thursday on), write what's
+    // queued with AI, push article drafts to the site UNPUBLISHED, and send the team its
+    // ready-to-post tasks on Telegram (capped per run). Nothing is published on the site.
+    const p = project(job.project);
+    if (!p) return { status: "error", error: "پروژه پیدا نشد" };
+    const steps: string[] = [];
+    try {
+      const dow = new Date().getDay(); // Thu=4, Fri=5, Sat=6
+      if ((dow === 4 || dow === 5) && !weekPlanned(p.id)) steps.push(`برنامه هفته: ${planWeek(p).length} پست`);
+      progress(1, 3, "نوشتن محتوای در صف");
+      const w = await autoWrite(p.id, undefined, Number(job.limit) || 4);
+      steps.push(`نوشته شد: ${w.written}${w.errors.length ? ` (خطا: ${w.errors.join("؛ ").slice(0, 200)})` : ""}`);
+      progress(2, 3, "ثبت پیش‌نویس و ارسال تلگرام");
+      const q2 = await processQueue(p);
+      steps.push(`پیش‌نویس روی سایت: ${q2.drafted}، پیام تلگرام: ${q2.messages}`);
+      return { status: w.errors.length && !w.written && !q2.drafted ? "error" : "ok", summary: { steps }, error: w.errors.length ? w.errors.join("؛ ").slice(0, 500) : undefined };
+    } catch (e) {
+      return { status: "error", error: String((e as Error).message || e).slice(0, 500), summary: { steps } };
     }
   }
   if (job.kind === "write_content") {
