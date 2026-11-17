@@ -13,8 +13,9 @@ export function ConnectionsClient({ projectId, initial, canEdit, gscProperty, ga
   const [testing, setTesting] = useState<Set<ConnName>>(new Set());
   const [ga, setGa] = useState(gaProperty);
   const [gsc, setGsc] = useState(gscProperty);
-  const [saving, setSaving] = useState<"ga" | "gsc" | null>(null);
-  const [saveMsg, setSaveMsg] = useState<Partial<Record<"ga" | "gsc", { ok: boolean; text: string }>>>({});
+  const [saving, setSaving] = useState<"ga" | "gsc" | "bing" | null>(null);
+  const [bing, setBing] = useState("");
+  const [saveMsg, setSaveMsg] = useState<Partial<Record<"ga" | "gsc" | "bing", { ok: boolean; text: string }>>>({});
 
   async function runTest(name: ConnName) {
     setTesting((s) => new Set(s).add(name));
@@ -33,10 +34,10 @@ export function ConnectionsClient({ projectId, initial, canEdit, gscProperty, ga
     await Promise.all(initial.filter((c) => c.name !== "telegram").map((c) => runTest(c.name)));
   }
 
-  async function save(kind: "ga" | "gsc") {
+  async function save(kind: "ga" | "gsc" | "bing") {
     setSaving(kind);
     try {
-      const r = await api<{ ok: boolean; message: string }>(`/api/projects/${projectId}/connections`, { method: "POST", body: { [kind]: kind === "ga" ? ga : gsc } });
+      const r = await api<{ ok: boolean; message: string }>(`/api/projects/${projectId}/connections`, { method: "POST", body: { [kind]: kind === "ga" ? ga : kind === "gsc" ? gsc : bing } });
       setSaveMsg((m) => ({ ...m, [kind]: { ok: r.ok, text: r.message } }));
       router.refresh();
     } catch (e) {
@@ -87,6 +88,17 @@ export function ConnectionsClient({ projectId, initial, canEdit, gscProperty, ga
                     {serviceEmail && <> سپس در Admin ← Property access management، ایمیل <span className="mono ltr">{serviceEmail}</span> را با نقش Viewer اضافه کنید.</>}
                   </p>
                   {saveMsg.ga && <p className={`small ${saveMsg.ga.ok ? "up" : "down"}`} role="status">{saveMsg.ga.text}</p>}
+                </div>
+              )}
+              {c.editable === "bing" && canEdit && (
+                <div className="conn-edit">
+                  <label htmlFor="bing-key">کلید API بینگ</label>
+                  <div className="row" style={{ gap: 8 }}>
+                    <input id="bing-key" type="password" className="mono ltr" autoComplete="off" placeholder={c.configured ? "•••••• (ثبت شده)" : "API key"} value={bing} onChange={(e) => setBing(e.target.value)} />
+                    <button type="button" className="btn sm primary" disabled={saving !== null || !bing.trim()} onClick={() => save("bing")}>{saving === "bing" ? "..." : "ذخیره"}</button>
+                  </div>
+                  <p className="muted small">در Bing Webmaster Tools سایت را با «Import from Google Search Console» اضافه کنید (فایلی روی سایت لازم نیست)، بعد از Settings ← API access ← API Key کلید را بسازید.</p>
+                  {saveMsg.bing && <p className={`small ${saveMsg.bing.ok ? "up" : "down"}`} role="status">{saveMsg.bing.text}</p>}
                 </div>
               )}
               {c.editable === "gsc" && canEdit && (

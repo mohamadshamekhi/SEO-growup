@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!JOB_KINDS.has(kind)) return NextResponse.json({ error: "bad kind" }, { status: 400 });
   if (kind === "gsc" && !keyInfo()) return NextResponse.json({ error: "اول کلید Search Console را در تنظیمات اضافه کنید" }, { status: 400 });
 
-  const queued = enqueue({ project: pid, kind: kind as JobKey });
+  const queued = enqueue(kind === "index" && body.only_open ? { project: pid, kind: "index", only_open: true } : { project: pid, kind: kind as JobKey });
   logActivity(pid, gate.user.name, "POST", req.nextUrl.pathname);
   return NextResponse.json({ queued });
 }

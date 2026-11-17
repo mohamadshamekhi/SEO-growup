@@ -4,10 +4,11 @@ import { project } from "@/lib/projects";
 import { list, test, type ConnName } from "@/lib/connections";
 import { setProperty as setGaProperty, pull as gaPull, saveError as gaSaveError } from "@/lib/ga";
 import { run } from "@/lib/db";
+import { setBingKey } from "@/lib/indexing-auto";
 import { logActivity } from "@/lib/activity";
 
 export const dynamic = "force-dynamic";
-const NAMES: ConnName[] = ["site", "site_api", "google_key", "gsc", "gsc_write", "indexnow", "ga", "ai", "telegram", "pagespeed"];
+const NAMES: ConnName[] = ["site", "site_api", "google_key", "gsc", "gsc_write", "indexnow", "bing", "ga", "ai", "telegram", "pagespeed"];
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: pid } = await params;
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 /** {test: name} runs a live test; {ga: "123"} / {gsc: "sc-domain:..."} saves a property (GA is then pulled right away). */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: pid } = await params;
-  const b = await req.json().catch(() => ({})) as { test?: ConnName; ga?: string; gsc?: string };
+  const b = await req.json().catch(() => ({})) as { test?: ConnName; ga?: string; gsc?: string; bing?: string };
   const gate = requireProjectAccess(req, pid, b.test ? "view" : "edit");
   if ("response" in gate) return gate.response;
   const p = project(pid);
@@ -41,6 +42,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
       logActivity(pid, gate.user.name, "POST", req.nextUrl.pathname);
       return NextResponse.json({ ok: pulled !== null || !b.ga.trim(), message });
+    }
+    if (typeof b.bing === "string") {
+      setBingKey(pid, b.bing);
+      logActivity(pid, gate.user.name, "POST", req.nextUrl.pathname);
+      return NextResponse.json({ ok: true, message: b.bing.trim() ? "ذخیره شد؛ «تست» را بزنید." : "کلید پاک شد." });
     }
     if (typeof b.gsc === "string") {
       const v = b.gsc.trim();

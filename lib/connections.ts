@@ -12,12 +12,12 @@ import { googleFetch } from "./google-proxy";
 import { fetchUrl } from "./crawl";
 import { formatJalaliDateTime } from "./intl/jalali";
 import type { ProjectRow } from "./projects";
-import { indexNowKey, indexNowReady, submitSitemap } from "./indexing-auto";
+import { indexNowKey, indexNowReady, submitSitemap, bingKey, bingQuota } from "./indexing-auto";
 
-export type ConnName = "site" | "site_api" | "google_key" | "gsc" | "gsc_write" | "indexnow" | "ga" | "ai" | "telegram" | "pagespeed";
+export type ConnName = "site" | "site_api" | "google_key" | "gsc" | "gsc_write" | "indexnow" | "bing" | "ga" | "ai" | "telegram" | "pagespeed";
 export type Conn = {
   name: ConnName; title: string; purpose: string; configured: boolean; detail: string;
-  lastError: string; where: string; editable?: "gsc" | "ga";
+  lastError: string; where: string; editable?: "gsc" | "ga" | "bing";
 };
 export type TestResult = { ok: boolean; message: string; ms: number };
 
@@ -48,6 +48,8 @@ export function list(p: ProjectRow): Conn[] {
       lastError: "", where: "ایمیل Service Account باید در Search Console ← Settings ← Users and permissions نقش Full داشته باشد." },
     { name: "indexnow", title: "IndexNow (Bing، Yandex و…)", purpose: "آدرس‌های تازه و تغییرکرده هر روز به موتورهای جستجوی غیر گوگل خبر داده می‌شود.", configured: true,
       detail: `فایل کلید لازم: https://${p.domain}/${indexNowKey(p.id)}.txt با محتوای «${indexNowKey(p.id)}»`, lastError: "", where: "" },
+    { name: "bing", title: "Bing Webmaster (بدون فایل روی سایت)", purpose: "جایگزین IndexNow که هیچ تغییری در سایت لازم ندارد: آدرس‌های تازه هر روز مستقیم به بینگ فرستاده می‌شود.", configured: !!bingKey(p.id),
+      detail: bingKey(p.id) ? "کلید API ثبت شده" : "کلید API وارد نشده", lastError: "", where: "", editable: "bing" },
     { name: "ga", title: "Google Analytics 4", purpose: "بازدید، افزودن به سبد و فروش هر صفحه؛ بدون آن تب فروش فقط کلیک گوگل را می‌بیند.", configured: keyOk && !!gaProp,
       detail: gaProp ? `property ${gaProp}${gaState.at ? ` · آخرین دریافت ${when(gaState.at)}` : " · هنوز دریافت نشده"}` : "شناسه property وارد نشده",
       lastError: ga.lastError(p.id), where: "", editable: "ga" },
@@ -90,6 +92,7 @@ export async function test(p: ProjectRow, name: ConnName): Promise<TestResult> {
         const r = await indexNowReady(p);
         return done(r.ok, r.ok ? "فایل کلید روی سایت هست؛ ارسال‌ها پذیرفته می‌شوند." : `فایل ${r.keyUrl} روی سایت نیست یا محتوایش «${r.key}» نیست.`);
       }
+      case "bing": return done(true, `وصل است؛ سهمیه امروز: ${await bingQuota(p)} آدرس.`);
       case "ga": {
         const r = await ga.testGa(p.id);
         ga.saveError(p.id, r.ok ? "" : r.message);

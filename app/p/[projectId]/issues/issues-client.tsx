@@ -41,7 +41,7 @@ function handoff(r: Issue): string {
   ].filter(Boolean).join("\n");
 }
 
-export function IssuesClient({ projectId, initialRows, compact = false }: { projectId: string; initialRows: Issue[]; compact?: boolean }) {
+export function IssuesClient({ projectId, initialRows, compact = false, gscProperty = "" }: { projectId: string; initialRows: Issue[]; compact?: boolean; gscProperty?: string }) {
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
   const [err, setErr] = useState("");
@@ -113,6 +113,18 @@ export function IssuesClient({ projectId, initialRows, compact = false }: { proj
     }
   }
 
+  async function recheckIndex() {
+    setChecking(true); setErr(""); setMsg("");
+    try {
+      await api(`/api/projects/${projectId}/run`, { method: "POST", body: { kind: "index", only_open: true } });
+      setMsg("بررسی دوباره ایندکس صفحه‌های ایندکس‌نشده در صف قرار گرفت؛ صفحه‌هایی که ایندکس شده باشند خودکار از این فهرست می‌روند.");
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "خطا");
+    } finally {
+      setChecking(false);
+    }
+  }
+
   async function recheck() {
     setChecking(true); setErr(""); setMsg("");
     try {
@@ -131,6 +143,7 @@ export function IssuesClient({ projectId, initialRows, compact = false }: { proj
       {!compact && (
         <div className="row" style={{ gap: 8, margin: "0 0 12px" }}>
           <button type="button" className="btn sm" disabled={checking} onClick={recheck}>بررسی مجدد سایت</button>
+          {rows.some((r) => r.code === "not_indexed" && r.status === "open") && <button type="button" className="btn sm" disabled={checking} onClick={recheckIndex}>بررسی دوباره ایندکس در گوگل</button>}
         </div>
       )}
       {err && <div className="err" role="alert">{err}</div>}
@@ -156,7 +169,14 @@ export function IssuesClient({ projectId, initialRows, compact = false }: { proj
                           {busy === r.id ? "در حال رفع..." : "رفع خودکار"}
                         </button>
                       )}
-                      {r.status === "open" && r.technical && (
+                      {r.status === "open" && r.code === "not_indexed" && gscProperty && (
+                        <a className="btn sm primary" target="_blank" rel="noreferrer"
+                          href={`https://search.google.com/search-console/inspect?resource_id=${encodeURIComponent(gscProperty)}&id=${encodeURIComponent(r.url)}`}
+                          title="Search Console همین آدرس را باز می‌کند؛ آنجا «Request indexing» را بزنید (گوگل برای این کار API ندارد)">
+                          درخواست ایندکس در گوگل ↗
+                        </a>
+                      )}
+                      {r.status === "open" && r.technical && r.code !== "not_indexed" && (
                         <button className={`btn sm${r.canFix ? "" : " primary"}`} disabled={diagnosing !== null} aria-busy={diagnosing === r.id}
                           onClick={() => (r.diagnosis ? toggleGuide(r.id) : diagnose(r))}>
                           {diagnosing === r.id ? "در حال بررسی صفحه..." : "راه‌حل فنی"}

@@ -7,6 +7,7 @@
 import crypto from "node:crypto";
 import { catalogRows } from "./catalog";
 import { upsertFix } from "./fix-upsert";
+import { submitSitemap } from "./indexing-auto";
 import { U } from "./crawl";
 import { now as dbNow, one, q, run } from "./db";
 import { askAI, AIGatewayError } from "./ai";
@@ -28,7 +29,7 @@ const DUP = new Set(["duplicate_title", "duplicate_description"]);
 /** Same rule the client uses to decide whether to show the button. Article titles are the
  * article's own heading (not a separate SEO field), so duplicate article titles are never auto-rewritten. */
 export function canAutoFix(code: string, url: string): boolean {
-  if (code === "img_no_alt" || code === "h1_count") return true;
+  if (code === "img_no_alt" || code === "h1_count" || code === "sitemap_not_submitted") return true;
   if (!CODE_TYPE[code]) return false;
   if (code === "duplicate_title" && !url.includes("/product/")) return false;
   return true;
@@ -49,6 +50,13 @@ export async function autoFixIssue(project: ProjectRow, user: string, issueId: n
 
   if (issue.code === "img_no_alt") return fixImgAlt(project, user, issue);
   if (issue.code === "h1_count") return fixExtraH1(project, user, issue);
+  if (issue.code === "sitemap_not_submitted") {
+    try {
+      const msg = await submitSitemap(project, true);
+      run("UPDATE issues SET status='fixed', fixed_at=? WHERE id=?", dbNow(), issue.id);
+      return { ok: true, applied: true, proposed: msg, fixedIds: [issue.id] };
+    } catch (e) { return { ok: false, reason: (e as Error).message }; }
+  }
 
   const type = CODE_TYPE[issue.code];
   if (!type || !canAutoFix(issue.code, issue.url)) {

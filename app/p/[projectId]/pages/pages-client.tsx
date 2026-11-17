@@ -5,7 +5,7 @@ import { IssuesClient, type Issue } from "../issues/issues-client";
 
 type PageRow = { url: string; key: string; kind: string; status: number; title: string; words: number };
 
-export function PagesClient({ projectId, rows, issues }: { projectId: string; rows: PageRow[]; issues: Record<string, Issue[]> }) {
+export function PagesClient({ projectId, rows, issues, gscProperty = "" }: { projectId: string; rows: PageRow[]; issues: Record<string, Issue[]>; gscProperty?: string }) {
   const [open, setOpen] = useState<string | null>(null);
 
   return (
@@ -43,7 +43,7 @@ export function PagesClient({ projectId, rows, issues }: { projectId: string; ro
                 {expanded && (
                   <tr id={`page-issues-${r.key}`} className="guide-row">
                     <td colSpan={6}>
-                      <IssuesClient projectId={projectId} initialRows={list} compact />
+                      <IssuesClient projectId={projectId} initialRows={list} compact gscProperty={gscProperty} />
                     </td>
                   </tr>
                 )}

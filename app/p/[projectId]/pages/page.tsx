@@ -38,7 +38,7 @@ export default async function PagesTab({ params }: { params: Promise<{ projectId
       {run && (
         <>
           <p className="page-note">{faNum(rows.length)} صفحه از آخرین ممیزی</p>
-          <PagesClient projectId={projectId} rows={pages} issues={issues} />
+          <PagesClient projectId={projectId} rows={pages} issues={issues} gscProperty={project(projectId)?.gsc_property || ""} />
         </>
       )}
     </div>

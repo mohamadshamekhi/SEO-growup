@@ -12,7 +12,7 @@ import { DATA_DIR, one, run } from "./db";
 import type { ProjectRow } from "./projects";
 
 export const WRITABLE: Record<string, readonly string[]> = {
-  steve: ["seo_title", "description", "meta_description", "brand", "image_alt", "internal_link", "kw_title", "kw_description", "kw_refresh", "kw_faq", "cro_description", "oos_links", "article_img_alt"],
+  steve: ["seo_title", "description", "meta_description", "brand", "image_alt", "internal_link", "kw_title", "kw_description", "kw_refresh", "kw_faq", "cro_description", "oos_links", "article_img_alt", "category"],
   wordpress: ["seo_title", "meta_description", "description", "kw_title", "kw_description", "cro_description", "oos_links"],
   custom: ["seo_title", "meta_description", "description", "kw_title", "kw_description", "cro_description", "oos_links"],
 };
@@ -129,6 +129,23 @@ export class Steve implements SiteAdapter {
     return (d.article ?? d) as Record<string, unknown>;
   }
 
+  /** Product categories as the storefront exposes them (id + name). */
+  async categories(): Promise<{ id: string; name: string; parent: string }[]> {
+    const d = await this.req("GET", "/category/storefront", undefined, false);
+    const list = (Array.isArray(d) ? d : (d.categories ?? d.items ?? d.list ?? [])) as Record<string, unknown>[];
+    const out: { id: string; name: string; parent: string }[] = [];
+    const walk = (xs: Record<string, unknown>[], parent: string) => {
+      for (const c of xs || []) {
+        const id = String(c.id ?? c._id ?? ""), name = String(c.name ?? c.title ?? c.fa_name ?? "");
+        if (id && name) out.push({ id, name, parent });
+        const kids = (c.children ?? c.sub_categories ?? c.subcategories) as Record<string, unknown>[] | undefined;
+        if (Array.isArray(kids)) walk(kids, name);
+      }
+    };
+    walk(list, "");
+    return out;
+  }
+
   /** Full article (the storefront lookup omits the body). */
   async articleBody(url: string): Promise<{ id: string; title: string; body: string }> {
     const a = await this.article(decodeURIComponent(url));
@@ -151,7 +168,7 @@ export class Steve implements SiteAdapter {
 
   async apply(fix: ApplyFix): Promise<UndoRecord> {
     const { type: t, url, proposed: val } = fix;
-    if (t === "seo_title" || t === "description" || t === "brand" || t === "cro_description" || t === "oos_links" || ((t.startsWith("kw_") || t === "meta_description") && url.includes("/product/"))) {
+    if (t === "seo_title" || t === "description" || t === "brand" || t === "cro_description" || t === "oos_links" || t === "category" || ((t.startsWith("kw_") || t === "meta_description") && url.includes("/product/"))) {
       const p = await this.product(url);
       const pid = (p._id || p.id) as string;
       const curRes = await this.req("GET", `/product/${pid}`);
@@ -169,6 +186,10 @@ export class Steve implements SiteAdapter {
         body = { seo_title: val }; before = { seo_title: p.seo_title || "" };
       } else if (t === "meta_description") {
         body = { seo_description: val }; before = { seo_description: curProduct.seo_description || "" };
+      } else if (t === "category") {
+        const cur = (curProduct.category_id ?? (curProduct.category as { id?: string; _id?: string } | undefined)?.id ?? (curProduct.category as { _id?: string } | undefined)?._id ?? "") as string;
+        if (cur === val) throw new Error("محصول همین حالا در این دسته است");
+        body = { category_id: val }; before = { category_id: cur };
       } else if (t === "cro_description" || t === "oos_links") {
         if (crypto.createHash("sha256").update(String(p.description || "")).digest("hex") !== fix.base_hash) throw new Error("توضیح محصول بعد از آماده شدن پیشنهاد عوض شده؛ دوباره پیشنهاد بگیرید");
         body = { description: val }; before = { description: p.description || "" };
