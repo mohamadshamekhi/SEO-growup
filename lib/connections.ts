@@ -46,7 +46,7 @@ export function list(p: ProjectRow): Conn[] {
     { name: "gsc_write", title: "ثبت خودکار sitemap در گوگل", purpose: "هر روز بعد از بررسی ایندکس، اگر sitemap عوض شده باشد دوباره برای گوگل ثبت می‌شود.", configured: keyOk && !!p.gsc_property,
       detail: (() => { const s = getSetting<{ at?: number }>(`sitemap_submit:${p.id}`, {}); return s.at ? `آخرین ثبت ${when(s.at)}` : "هنوز ثبت نشده"; })(),
       lastError: "", where: "ایمیل Service Account باید در Search Console ← Settings ← Users and permissions نقش Full داشته باشد." },
-    { name: "indexnow", title: "IndexNow (Bing، Yandex و…)", purpose: "آدرس‌های تازه و تغییرکرده هر روز به موتورهای جستجوی غیر گوگل خبر داده می‌شود.", configured: true,
+    { name: "indexnow", title: "IndexNow (اختیاری، اگر Bing وصل باشد لازم نیست)", purpose: "مثل Bing ولی برای Yandex و بقیه هم؛ فقط با گذاشتن یک فایل روی سایت (کار تیم فرانت) فعال می‌شود.", configured: true,
       detail: `فایل کلید لازم: https://${p.domain}/${indexNowKey(p.id)}.txt با محتوای «${indexNowKey(p.id)}»`, lastError: "", where: "" },
     { name: "bing", title: "Bing Webmaster (بدون فایل روی سایت)", purpose: "جایگزین IndexNow که هیچ تغییری در سایت لازم ندارد: آدرس‌های تازه هر روز مستقیم به بینگ فرستاده می‌شود.", configured: !!bingKey(p.id),
       detail: bingKey(p.id) ? "کلید API ثبت شده" : "کلید API وارد نشده", lastError: "", where: "", editable: "bing" },
