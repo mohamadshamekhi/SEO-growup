@@ -170,11 +170,15 @@ export function IssuesClient({ projectId, initialRows, compact = false, gscPrope
                         </button>
                       )}
                       {r.status === "open" && r.code === "not_indexed" && gscProperty && (
-                        <a className="btn sm primary" target="_blank" rel="noreferrer"
-                          href={`https://search.google.com/search-console/inspect?resource_id=${encodeURIComponent(gscProperty)}&id=${encodeURIComponent(r.url)}`}
-                          title="Search Console همین آدرس را باز می‌کند؛ آنجا «Request indexing» را بزنید (گوگل برای این کار API ندارد)">
+                        <button type="button" className="btn sm primary"
+                          title="آدرس کپی و Search Console باز می‌شود؛ آدرس را در کادر بالای Search Console بچسبانید و «Request indexing» را بزنید (گوگل برای این کار API ندارد)"
+                          onClick={async () => {
+                            try { await navigator.clipboard.writeText(decodeURIComponent(r.url)); } catch { /* clipboard blocked */ }
+                            window.open("https://search.google.com/search-console", "_blank", "noopener");
+                            setMsg(`آدرس کپی شد. در Search Console (با اکانتی که به سایت دسترسی دارد) آن را در کادر «Inspect any URL» بالای صفحه بچسبانید، Enter و بعد «Request indexing» را بزنید.`);
+                          }}>
                           درخواست ایندکس در گوگل ↗
-                        </a>
+                        </button>
                       )}
                       {r.status === "open" && r.technical && r.code !== "not_indexed" && (
                         <button className={`btn sm${r.canFix ? "" : " primary"}`} disabled={diagnosing !== null} aria-busy={diagnosing === r.id}
